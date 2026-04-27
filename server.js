@@ -1,10 +1,28 @@
 const http = require("http");
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const path = require("path");
+
+// Load .env file if present (no external dependencies needed)
+(function loadEnv() {
+  const envPath = path.join(__dirname, ".env");
+  if (!fsSync.existsSync(envPath)) return;
+  const lines = fsSync.readFileSync(envPath, "utf8").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIndex = trimmed.indexOf("=");
+    if (eqIndex < 1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    const value = trimmed.slice(eqIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+    if (key && !(key in process.env)) process.env[key] = value;
+  }
+})();
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
+const DATA_FILE = path.join(__dirname, "data.json");
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -198,6 +216,32 @@ async function serveStatic(request, response) {
 }
 
 const server = http.createServer(async (request, response) => {
+  if (request.method === "GET" && request.url === "/api/state") {
+    try {
+      const content = await fs.readFile(DATA_FILE, "utf8");
+      sendJson(response, 200, JSON.parse(content));
+    } catch {
+      // No data file yet — return empty object so client uses initialData
+      sendJson(response, 200, {});
+    }
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/state") {
+    try {
+      const body = await readRequestBody(request);
+      if (!body || typeof body !== "object") {
+        sendJson(response, 400, { error: "Invalid state payload." });
+        return;
+      }
+      await fs.writeFile(DATA_FILE, JSON.stringify(body, null, 2), "utf8");
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      sendJson(response, 500, { error: error.message || "Failed to save state." });
+    }
+    return;
+  }
+
   if (request.method === "POST" && request.url === "/api/ai/generate") {
     try {
       const body = await readRequestBody(request);

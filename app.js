@@ -1,4 +1,5 @@
 const STORAGE_KEY = "art-flaneur-content-dashboard";
+const DATA_VERSION = 3; // bump to force-reset personas+clusters when structure changes
 const DEMO_PERSONA_NAMES = ["Independent Curator", "Emerging Collector", "Cultural Traveler"];
 const DEMO_CLUSTER_TITLES = [
   "Contemporary Art Discovery",
@@ -104,7 +105,96 @@ const initialData = {
       promptHint: "What removes friction from action?"
     }
   ],
-  clusters: [],
+  clusters: [
+    {
+      title: "Festival Audience Growth",
+      persona: "Biennale Organizer",
+      intent: "Awareness",
+      score: "9/10",
+      summary: "Helps biennale and festival organizers improve attendance, discoverability, and public engagement",
+      subtopics: ["festival audience development", "event discoverability", "cultural event marketing", "visitor engagement", "public program promotion", "audience growth strategy"]
+    },
+    {
+      title: "Sponsor Value for Festivals",
+      persona: "Biennale Organizer",
+      intent: "Consideration",
+      score: "8/10",
+      summary: "Helps festival teams prove sponsor ROI and position Art Flaneur as a measurable partner",
+      subtopics: ["sponsor ROI", "partnership visibility", "cultural sponsorship value", "event reporting", "sponsor activation", "festival analytics"]
+    },
+    {
+      title: "Event Routes and Visitor Experience",
+      persona: "Biennale Organizer",
+      intent: "Consideration",
+      score: "9/10",
+      summary: "Shows how Art Flaneur improves navigation, visitor flow, and the experience of moving through multi-venue events",
+      subtopics: ["event routes", "art festival map", "visitor journey", "citywide art event navigation", "multi-venue experience", "cultural wayfinding"]
+    },
+    {
+      title: "Partner with Art Flaneur for Your Festival",
+      persona: "Biennale Organizer",
+      intent: "Decision",
+      score: "8/10",
+      summary: "Moves festival directors from evaluation to commitment by addressing final objections, demonstrating measurable ROI, and making the path to onboarding with Art Flaneur clear and low-risk",
+      subtopics: ["Art Flaneur festival partnership", "event platform onboarding", "festival ROI case studies", "cultural event tech adoption", "pilot program for festivals", "festival partnership pricing and scope"]
+    },
+    {
+      title: "Gallery Visibility That Converts",
+      persona: "Gallery Director",
+      intent: "Awareness",
+      score: "10/10",
+      summary: "Speaks directly to galleries that struggle to turn visibility into qualified traffic and sales",
+      subtopics: ["gallery visibility", "exhibition promotion", "art gallery marketing", "qualified visitor traffic", "collector discovery", "exhibition traffic"]
+    },
+    {
+      title: "Exhibition Discovery",
+      persona: "Gallery Director",
+      intent: "Awareness",
+      score: "8/10",
+      summary: "Attracts both galleries and cultural audiences through the problem of finding current exhibitions easily",
+      subtopics: ["current exhibitions", "how to find exhibitions", "art shows near me", "exhibition guides", "local art discovery", "gallery exhibitions"]
+    },
+    {
+      title: "Collector Traffic and Conversion",
+      persona: "Gallery Director",
+      intent: "Consideration",
+      score: "9/10",
+      summary: "Positions Art Flaneur as a growth tool for galleries seeking collector relationships and better exhibition conversion",
+      subtopics: ["collector traffic", "collector engagement", "gallery sales conversion", "art buyer journey", "exhibition-to-sale conversion", "collector acquisition"]
+    },
+    {
+      title: "Convert Exhibition Interest to Sales",
+      persona: "Gallery Director",
+      intent: "Decision",
+      score: "9/10",
+      summary: "Supports gallery directors at the decision stage with clear frameworks for converting exhibition visitors and online followers into buyers and long-term collector relationships",
+      subtopics: ["artwork pricing transparency", "collector follow-up process", "gallery CTA strategy", "purchase confidence builders", "exhibition closing techniques", "collector relationship onboarding"]
+    },
+    {
+      title: "Cultural City Guides",
+      persona: "Cultural Tourist",
+      intent: "Awareness",
+      score: "8/10",
+      summary: "Helps cultural tourists discover cities through art and supports Art Flaneur's distribution and authority layer",
+      subtopics: ["art city guide", "cultural travel guide", "art in Tokyo", "art in Melbourne", "gallery neighborhoods", "creative city routes"]
+    },
+    {
+      title: "Art Travel Planning",
+      persona: "Cultural Tourist",
+      intent: "Consideration",
+      score: "7/10",
+      summary: "Solves the planning problem for cultural tourists who need timing, relevance, and easy navigation",
+      subtopics: ["art trip planning", "cultural itinerary", "gallery route planner", "exhibition travel tips", "weekend art itinerary", "art tourism planning"]
+    },
+    {
+      title: "Book and Plan Your Art Trip",
+      persona: "Cultural Tourist",
+      intent: "Decision",
+      score: "8/10",
+      summary: "Helps cultural tourists move from intent to action with clear booking paths, exhibition checklists, and personalised itinerary guidance for art-focused travel",
+      subtopics: ["art experience booking", "gallery visit planning", "cultural trip itinerary builder", "what to see this weekend", "exhibition booking guide", "art travel checklist"]
+    }
+  ],
   pipeline: {
     Idea: [],
     Brief: [],
@@ -356,12 +446,23 @@ function loadState() {
     }
 
     const parsed = JSON.parse(stored);
-    return migratePrototypeState({
+
+    // If data version is stale, reset personas and clusters to initialData only once,
+    // then immediately persist the new version so subsequent loads don't re-reset.
+    const needsReset = !parsed.dataVersion || parsed.dataVersion < DATA_VERSION;
+    const personas = needsReset ? clone(initialData.personas) : (parsed.personas || clone(initialData.personas));
+    const rawClusters = needsReset
+      ? clone(initialData.clusters)
+      : ((parsed.clusters && parsed.clusters.length > 0) ? parsed.clusters : clone(initialData.clusters));
+
+    const state = migratePrototypeState({
       ...clone(initialData),
       ...parsed,
+      dataVersion: DATA_VERSION,
       hints: clone(initialData.hints),
       aiTasks: clone(initialData.aiTasks),
-      clusters: (parsed.clusters || clone(initialData.clusters)).map((cluster) => normalizeCluster(cluster)),
+      personas,
+      clusters: rawClusters.map((cluster) => normalizeCluster(cluster)),
       pipeline: Object.fromEntries(
         Object.entries({ ...clone(initialData.pipeline), ...(parsed.pipeline || {}) }).map(([status, items]) => [
           status,
@@ -371,6 +472,17 @@ function loadState() {
       channels: (parsed.channels || []).map(normalizeChannel),
       calendar: (parsed.calendar || []).map(normalizeCalendarEntry)
     });
+
+    // Persist immediately after a version reset so it only happens once
+    if (needsReset) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, dataVersion: DATA_VERSION }));
+      } catch {
+        // ignore
+      }
+    }
+
+    return state;
   } catch {
     return clone(initialData);
   }
@@ -379,10 +491,66 @@ function loadState() {
 let dashboardData = loadState();
 
 function saveState() {
+  const payload = { ...dashboardData, dataVersion: DATA_VERSION };
+  // Persist to localStorage as fallback
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(dashboardData));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
-    return;
+    // ignore
+  }
+  // Persist to server (fire-and-forget) for cross-computer stability
+  fetch("/api/state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).catch(() => {
+    // offline or server not running — localStorage already saved above
+  });
+}
+
+// On startup, load from server and overwrite local state if server has valid data.
+// Runs after renderAll() so the page shows immediately while the fetch completes.
+async function initServerSync() {
+  try {
+    const res = await fetch("/api/state");
+    if (!res.ok) return;
+    const serverData = await res.json();
+    // Only update if server has actual data (clusters or personas present)
+    const hasClusters = Array.isArray(serverData.clusters) && serverData.clusters.length > 0;
+    const hasPersonas = Array.isArray(serverData.personas) && serverData.personas.length > 0;
+    if (!hasClusters && !hasPersonas) return;
+    // Apply same migration logic as loadState
+    const needsReset = !serverData.dataVersion || serverData.dataVersion < DATA_VERSION;
+    const personas = needsReset ? clone(initialData.personas) : (serverData.personas || clone(initialData.personas));
+    const rawClusters = needsReset
+      ? clone(initialData.clusters)
+      : (serverData.clusters && serverData.clusters.length > 0 ? serverData.clusters : clone(initialData.clusters));
+    dashboardData = migratePrototypeState({
+      ...clone(initialData),
+      ...serverData,
+      dataVersion: DATA_VERSION,
+      hints: clone(initialData.hints),
+      aiTasks: clone(initialData.aiTasks),
+      personas,
+      clusters: rawClusters.map((cluster) => normalizeCluster(cluster)),
+      pipeline: Object.fromEntries(
+        Object.entries({ ...clone(initialData.pipeline), ...(serverData.pipeline || {}) }).map(([status, items]) => [
+          status,
+          (items || []).map(normalizePipelineItem)
+        ])
+      ),
+      channels: (serverData.channels || []).map(normalizeChannel),
+      calendar: (serverData.calendar || []).map(normalizeCalendarEntry)
+    });
+    // Sync localStorage to match server
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...dashboardData, dataVersion: DATA_VERSION }));
+    } catch {
+      // ignore
+    }
+    renderAll();
+  } catch {
+    // Server unreachable — continue with localStorage data
   }
 }
 
@@ -2239,4 +2407,5 @@ editPersonaForm.addEventListener("submit", saveEditPersona);
 window.addEventListener("resize", syncTextPanels);
 
 renderAll();
+initServerSync();
 setAiStatus("Ready");
