@@ -1415,13 +1415,27 @@ function applyAiRun() {
     if (items.length) {
       const fullText = latestAiRun?.displayText || "";
 
-      // Split response into per-section chunks: split on lines starting with a number + )
-      // e.g. "1) **LinkedIn..." "2) **Instagram..."
-      const sectionSplits = fullText.split(/(?=^\d+\)\s)/m).filter(Boolean);
+      // Find numbered section boundaries. Handles: "1) ", "1. ", "**1)**", "**1. ", "### 1."
+      const boundaryMatches = [...fullText.matchAll(/^\s*(?:\*{1,2}|#{1,3}\s*)?\d+[).]\s/gm)];
+      const starts = boundaryMatches.map((m) => m.index);
+
+      // Build ordered sections from boundary positions
+      const sections = starts.map((start, i) =>
+        fullText.slice(start, starts[i + 1] ?? fullText.length).trim()
+      );
 
       items.forEach((item, index) => {
-        // Assign the matching numbered section if available, else full text
-        const sectionText = sectionSplits[index] || fullText;
+        let sectionText;
+        if (sections.length >= items.length) {
+          // Primary: index-based (order guaranteed to match)
+          sectionText = sections[index];
+        }
+        if (!sectionText && item.format) {
+          // Fallback: search for section containing the format name (before any parenthesis)
+          const needle = item.format.split("(")[0].trim().toLowerCase();
+          sectionText = sections.find((s) => s.toLowerCase().includes(needle));
+        }
+        sectionText = sectionText || fullText;
         const enrichedItem = { ...item, briefContent: sectionText.trim() };
         if (upsertContentItem(enrichedItem, persona, stage)) {
           applied.push(item.format || item.title || "content item");
@@ -2069,7 +2083,8 @@ function buildPrompt() {
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "After the JSON line, write the briefs.",
-      "For EACH format in the list above, write a separate numbered brief that includes:",
+      "Start each brief with a line in this exact format: `N. Format name — Channel` (e.g. `1. LinkedIn long-form article — LinkedIn`) — nothing else on that line before the number.",
+      "For EACH format in the list above, write a separate numbered brief (1. 2. 3. …) that includes:",
       "  1. Format name and distribution channel",
       "  2. Working title written specifically for that format",
       "  3. Core promise (one sentence)",
@@ -2109,7 +2124,8 @@ function buildPrompt() {
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "After the JSON line, write the drafts.",
-      "For EACH format in the list above, write a separate numbered draft. Apply the correct structural rules per format:",
+      "Start each draft with a line in this exact format: `N. Format name — Channel` (e.g. `1. LinkedIn long-form article — LinkedIn`) — nothing else on that line before the number.",
+      "For EACH format in the list above, write a separate numbered draft (1. 2. 3. …). Apply the correct structural rules per format:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
       "  - Instagram Reel / TikTok script: hook (first 3 sec), 3 points (10–15 sec each), close with CTA. 60–90 sec total.",
