@@ -327,6 +327,9 @@ const coverageList = document.querySelector("#coverageList");
 const learningGrid = document.querySelector("#learningGrid");
 const aiTaskList = document.querySelector("#aiTaskList");
 const promptOutput = document.querySelector("#promptOutput");
+const aiContextPersona = document.querySelector("#aiContextPersona");
+const aiContextStage = document.querySelector("#aiContextStage");
+const aiContextTask = document.querySelector("#aiContextTask");
 const aiResponse = document.querySelector("#aiResponse");
 const aiStatus = document.querySelector("#aiStatus");
 const runAiButton = document.querySelector("#runAi");
@@ -748,8 +751,8 @@ function updateApplyState() {
   const canApply = Boolean(latestAiRun?.appData);
   applyAiButton.disabled = !canApply;
   applyAiNote.textContent = canApply
-    ? `Ready to apply ${latestAiRun.title} to the dashboard.`
-    : "The latest structured AI result can update personas, clusters, or content items.";
+    ? `Ready to apply “${latestAiRun.title}” to the dashboard.`
+    : "Run an AI task first — the button enables after the model returns a structured result.";
 }
 
 function saveAiHistoryEntry(entry) {
@@ -2096,6 +2099,11 @@ function buildPrompt() {
 
   promptOutput.value = promptLines.join("\n");
   syncTextPanels();
+
+  // Update context bar so user always knows what persona/stage/task is being targeted
+  if (aiContextPersona) aiContextPersona.textContent = persona;
+  if (aiContextStage) aiContextStage.textContent = stage;
+  if (aiContextTask) aiContextTask.textContent = task?.title || "Strategic plan";
 }
 
 function renderHints() {

@@ -380,6 +380,46 @@ textarea {
 }
 
 .filter-card span,
+.ai-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(199,101,58,0.07);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  flex-wrap: wrap;
+}
+
+.ai-context-label {
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 2px;
+}
+
+.ai-context-chip {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.ai-context-task {
+  color: var(--accent);
+  border-color: rgba(199,101,58,0.3);
+  background: rgba(199,101,58,0.06);
+}
+
+.ai-context-sep {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .prompt-box label,
 .response-box label {
   font-size: 0.84rem;
@@ -1002,6 +1042,20 @@ textarea {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+
+.prompt-box {
+  overflow: hidden; /* clips the context bar to the card's border-radius */
+}
+
+.prompt-box > label,
+.prompt-box > textarea,
+.prompt-box > .prompt-actions {
+  padding-inline: 16px;
+}
+
+.prompt-box > label {
+  padding-top: 14px;
 }
 
 .prompt-actions {
