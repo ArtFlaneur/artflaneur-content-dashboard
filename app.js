@@ -708,10 +708,13 @@ function extractAppData(text) {
   }
 
   try {
-    const appData = JSON.parse(match[1]);
+    // Strip markdown code fences the model sometimes wraps around JSON
+    const raw = match[1].replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    const appData = JSON.parse(raw);
     const displayText = String(text || "").replace(match[0], "").trim();
     return { appData, displayText };
-  } catch {
+  } catch (err) {
+    console.warn("[extractAppData] JSON parse failed:", err.message, "\nRaw:", match[1].slice(0, 200));
     return { appData: null, displayText: String(text || "").trim() };
   }
 }
@@ -2287,6 +2290,13 @@ async function runAiPlan() {
     const parsed = extractAppData(payload.text || "");
     aiResponse.value = parsed.displayText || payload.text || "No text returned.";
     syncTextPanels();
+
+    // If AI returned text but no parseable <app-data>, warn the user visibly
+    const hasAppDataTag = /<app-data>/i.test(payload.text || "");
+    if (hasAppDataTag && !parsed.appData) {
+      setAiStatus("Response received but <app-data> JSON could not be parsed — check browser console", "error");
+    }
+
     latestAiRun = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
       taskId: task?.id || "strategy-plan",
