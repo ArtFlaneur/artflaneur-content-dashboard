@@ -1415,31 +1415,17 @@ function applyAiRun() {
     if (items.length) {
       const fullText = latestAiRun?.displayText || "";
 
-      // Find each top-level section by searching for its EXACT sequential number (1, 2, 3…).
-      // This avoids matching sub-numbered items inside a section (e.g. "1. Format name",
-      // "2. Working title" etc. that appear as structural points inside each brief).
-      const sections = [];
-      for (let n = 1; n <= items.length; n++) {
-        const startRe = new RegExp(`^(?:\\*{1,2}|#{1,3} *)?${n}[).] `, "m");
-        const startMatch = startRe.exec(fullText);
-        if (!startMatch) { sections.push(null); continue; }
-        let endPos = fullText.length;
-        if (n < items.length) {
-          const nextRe = new RegExp(`^(?:\\*{1,2}|#{1,3} *)?${n + 1}[).] `, "m");
-          // Search for next section marker AFTER the current one starts
-          const searchFrom = startMatch.index + startMatch[0].length;
-          const nextMatch = nextRe.exec(fullText.slice(searchFrom));
-          if (nextMatch) endPos = searchFrom + nextMatch.index;
-        }
-        sections.push(fullText.slice(startMatch.index, endPos).trim());
-      }
+      // Split on === delimiter (a line containing only ===, as instructed in the prompt).
+      // This is unambiguous: === never appears in body text, unlike numbered lists.
+      const rawSections = fullText.split(/\n===\n/).map((s) => s.trim()).filter(Boolean);
+      const sections = rawSections.length >= items.length ? rawSections : null;
 
       items.forEach((item, index) => {
-        let sectionText = sections[index] || null;
+        let sectionText = sections ? sections[index] : null;
         if (!sectionText && item.format) {
-          // Fallback: find any section containing the format name (before any parenthesis)
+          // Fallback: find any section containing the format name
           const needle = item.format.split("(")[0].trim().toLowerCase();
-          sectionText = sections.find((s) => s && s.toLowerCase().includes(needle)) || null;
+          sectionText = (sections || []).find((s) => s.toLowerCase().includes(needle));
         }
         sectionText = sectionText || fullText;
         const enrichedItem = { ...item, briefContent: sectionText.trim() };
@@ -2089,15 +2075,15 @@ function buildPrompt() {
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "After the JSON line, write the briefs.",
-      "Start each brief with a line in this exact format: `N. Format name — Channel` (e.g. `1. LinkedIn long-form article — LinkedIn`) — nothing else on that line before the number.",
-      "For EACH format in the list above, write a separate numbered brief (1. 2. 3. …) that includes:",
-      "  1. Format name and distribution channel",
-      "  2. Working title written specifically for that format",
-      "  3. Core promise (one sentence)",
-      "  4. Structure / outline adapted to that format's rules",
-      "     (carousel = slide-by-slide; article = section headings; email = subject + body sections; script = timed beats; one-pager = key points)",
-      "  5. CTA appropriate to the stage and channel",
-      "  6. Target length or duration"
+      "CRITICAL FORMATTING RULE: Place a line containing ONLY === (three equals signs, nothing else) between each brief to separate them. Do NOT place === after the last brief.",
+      "For EACH format in the list above, write a complete brief that includes:",
+      "  - Format name and distribution channel (as a heading)",
+      "  - Working title written specifically for that format",
+      "  - Core promise (one sentence)",
+      "  - Structure / outline adapted to that format's rules",
+      "    (carousel = slide-by-slide; article = section headings; email = subject + body sections; script = timed beats; one-pager = key points)",
+      "  - CTA appropriate to the stage and channel",
+      "  - Target length or duration"
     ].filter(Boolean);
     weeklyFocus.textContent = `Draft ${stage.toLowerCase()} briefs for all ${persona} channels.`;
     runAiButton.textContent = "Run content briefs";
@@ -2130,8 +2116,8 @@ function buildPrompt() {
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "After the JSON line, write the drafts.",
-      "Start each draft with a line in this exact format: `N. Format name — Channel` (e.g. `1. LinkedIn long-form article — LinkedIn`) — nothing else on that line before the number.",
-      "For EACH format in the list above, write a separate numbered draft (1. 2. 3. …). Apply the correct structural rules per format:",
+      "CRITICAL FORMATTING RULE: Place a line containing ONLY === (three equals signs, nothing else) between each draft to separate them. Do NOT place === after the last draft.",
+      "For EACH format in the list above, write a complete, publication-ready draft. Apply the correct structural rules per format:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
       "  - Instagram Reel / TikTok script: hook (first 3 sec), 3 points (10–15 sec each), close with CTA. 60–90 sec total.",
