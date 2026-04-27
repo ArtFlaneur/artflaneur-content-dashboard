@@ -332,7 +332,7 @@ const aiStatus = document.querySelector("#aiStatus");
 const runAiButton = document.querySelector("#runAi");
 const applyAiButton = document.querySelector("#applyAi");
 const applyAiNote = document.querySelector("#applyAiNote");
-const aiHistoryList = document.querySelector("#aiHistoryList");
+
 const navStatusTargets = document.querySelectorAll("[data-status-for]");
 const weeklyFocus = document.querySelector("#weekly-focus");
 const navLinks = document.querySelectorAll(".nav-link");
@@ -2098,26 +2098,6 @@ function buildPrompt() {
   syncTextPanels();
 }
 
-function renderAiHistory() {
-  const history = dashboardData.aiHistory || [];
-
-  aiHistoryList.innerHTML = history.length
-    ? history
-        .map(
-          (entry) => `
-            <article class="history-item">
-              <div>
-                <p class="history-meta">${entry.taskTitle} · ${formatHistoryTime(entry.createdAt)}</p>
-                <h4 class="history-title">${entry.title}</h4>
-              </div>
-              <button class="ghost-button history-button" type="button" data-history-id="${entry.id}">Load</button>
-            </article>
-          `
-        )
-        .join("")
-    : '<div class="empty-state">No AI runs saved yet.</div>';
-}
-
 function renderHints() {
   learningGrid.innerHTML = dashboardData.hints
     .map(
@@ -2157,7 +2137,6 @@ function renderAll() {
   renderCalendar();
   renderChannels();
   renderHints();
-  renderAiHistory();
   buildPrompt();
   updateApplyState();
 }
@@ -2317,7 +2296,6 @@ async function runAiPlan() {
       createdAt: new Date().toISOString()
     };
     saveAiHistoryEntry(latestAiRun);
-    renderAiHistory();
     updateApplyState();
     setAiStatus(`${task?.title || "Task"} via ${payload.providerMode}`, "success");
   } catch (error) {
@@ -2376,16 +2354,6 @@ workflowGuide.addEventListener("click", (event) => {
   }
 
   showSection(trigger.dataset.jumpSection);
-});
-
-aiHistoryList.addEventListener("click", (event) => {
-  const trigger = event.target.closest("[data-history-id]");
-
-  if (!trigger) {
-    return;
-  }
-
-  loadAiHistoryEntry(trigger.dataset.historyId);
 });
 
 personaGrid.addEventListener("click", (event) => {
