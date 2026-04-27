@@ -1415,16 +1415,18 @@ function applyAiRun() {
     if (items.length) {
       const fullText = latestAiRun?.displayText || "";
 
-      // Split on === delimiter (a line containing only ===, as instructed in the prompt).
-      // This is unambiguous: === never appears in body text, unlike numbered lists.
+      // Preferred path: content is stored directly in structured JSON per item.
+      // Legacy fallback remains for earlier runs that only returned prose sections.
       const rawSections = fullText.split(/\n===\n/).map((s) => s.trim()).filter(Boolean);
       const sections = rawSections.length >= items.length ? rawSections : null;
 
       items.forEach((item, index) => {
-        // Pure index-based: sections are guaranteed to be in the same order as items
-        // because the prompt lists formats numbered 1..N and requires that exact order.
-        const sectionText = (sections && sections[index]) ? sections[index] : fullText;
-        const enrichedItem = { ...item, briefContent: sectionText.trim() };
+        const structuredContent = String(item?.briefContent || "").trim();
+        const legacyContent = (sections && sections[index]) ? sections[index] : fullText;
+        const enrichedItem = {
+          ...item,
+          briefContent: structuredContent || String(legacyContent || "").trim()
+        };
         if (upsertContentItem(enrichedItem, persona, stage)) {
           applied.push(item.format || item.title || "content item");
         }
@@ -2053,7 +2055,7 @@ function buildPrompt() {
 
   if (task?.id === "content-brief") {
     const jsonItems = formatPairs.map((p) =>
-      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${p.format}","channel":"${p.channel}"}`
+      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${p.format}","channel":"${p.channel}","briefContent":"FULL BRIEF IN MARKDOWN WITH ESCAPED NEWLINES"}`
     ).join(",\n    ");
 
     const numberedFormats = formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n");
@@ -2067,16 +2069,17 @@ function buildPrompt() {
       `Stage tone for every brief: ${stageGuidance}`,
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
+      "CRITICAL JSON RULE: For each contentItems entry, write the FULL brief inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
       `Write one content brief for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
       numberedFormats,
-      "CRITICAL FORMATTING RULE: Separate briefs with a line containing ONLY === (nothing else). Do NOT put === after the last brief.",
-      "Each brief must include:",
+      "Each briefContent value must include:",
       "  - Format name and channel (heading)",
       "  - Working title",
       "  - Core promise (1 sentence)",
       "  - Structure / outline (carousel = slide-by-slide; article = headings; email = subject + body; script = timed beats)",
       "  - CTA appropriate to the stage",
-      "  - Target length or duration"
+      "  - Target length or duration",
+      "After the JSON line, write only a 1-2 sentence summary of what was generated. Do NOT repeat the full briefs outside the JSON. The dashboard will use briefContent from the JSON as the source of truth."
     ].filter(Boolean);
     weeklyFocus.textContent = `Draft ${stage.toLowerCase()} briefs for all ${persona} channels.`;
     runAiButton.textContent = "Run content briefs";
@@ -2089,7 +2092,7 @@ function buildPrompt() {
       ?.briefContent || null;
 
     const jsonItems = formatPairs.map((p) =>
-      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${p.format}","channel":"${p.channel}"}`
+      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${p.format}","channel":"${p.channel}","briefContent":"FULL DRAFT IN MARKDOWN WITH ESCAPED NEWLINES"}`
     ).join(",\n    ");
 
     promptLines = [
@@ -2104,9 +2107,9 @@ function buildPrompt() {
       `Stage tone for every draft: ${stageGuidance}`,
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
+      "CRITICAL JSON RULE: For each contentItems entry, write the FULL draft inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
       `Write one complete publication-ready draft for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
       formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n"),
-      "CRITICAL FORMATTING RULE: Separate drafts with a line containing ONLY === (nothing else). Do NOT put === after the last draft.",
       "Structural rules per format type:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
@@ -2121,7 +2124,8 @@ function buildPrompt() {
       "  - Slide deck: title slide, agenda, 8–12 content slides (one point each), closing CTA slide.",
       "  - YouTube video script: intro hook, 4–6 segments with timestamps, outro CTA.",
       "  - YouTube Shorts script: hook (0–3s), 3 beats (10s each), CTA (last 5s).",
-      "  - All formats: adapt to the persona's world; every section addresses a specific pain or goal."
+      "  - All formats: adapt to the persona's world; every section addresses a specific pain or goal.",
+      "After the JSON line, write only a 1-2 sentence summary of what was generated. Do NOT repeat the full drafts outside the JSON. The dashboard will use briefContent from the JSON as the source of truth."
     ].filter(Boolean);
 
     weeklyFocus.textContent = `Write ${stage.toLowerCase()} drafts for all ${persona} formats.`;
