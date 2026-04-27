@@ -22,6 +22,36 @@ const DEMO_CALENDAR_TITLES = [
 
 const STATUS_ORDER = ["Idea", "Brief", "Draft", "Review", "Published"];
 
+const STAGE_MODEL = {
+  Awareness: {
+    motion: "Attract",
+    badge: "Awareness / Attract",
+    description: "Audience is naming a problem or curiosity and needs a clear reason to pay attention.",
+    focus: ["Problem framing", "Educational explainers", "Trust-building context"],
+    marketerNote: "Use this stage to attract the right audience around a real problem before asking for action.",
+    promptHint: "What would attract attention by clarifying the problem, stakes, or opportunity?",
+    guidance: "educational, wide-reach — surface the problem, inform, build trust. Avoid sales language."
+  },
+  Consideration: {
+    motion: "Engage",
+    badge: "Consideration / Engage",
+    description: "Audience is comparing approaches, structures, or partners and needs help evaluating options.",
+    focus: ["Frameworks", "Comparisons", "Evaluation tools"],
+    marketerNote: "Use this stage to engage serious prospects with sharper comparisons and clearer strategic tradeoffs.",
+    promptHint: "What helps them compare approaches with confidence and stay engaged with the topic?",
+    guidance: "comparison or framework — help the audience evaluate options and build confidence."
+  },
+  Decision: {
+    motion: "Delight",
+    badge: "Decision / Delight",
+    description: "Audience is close to action and needs low-friction proof, clarity, and a confident next step.",
+    focus: ["Proof", "Implementation clarity", "Next-step offers"],
+    marketerNote: "Use this stage to delight the buyer with clarity, low friction, and a confident path forward.",
+    promptHint: "What would remove friction now and make the next step feel clear, useful, and trustworthy?",
+    guidance: "action-oriented — remove friction, speak directly to the decision, include a clear next step."
+  }
+};
+
 // Maps each distribution channel to the content formats that work best on it
 // Canonical channel keys — AI must use these exact strings when writing persona channels
 const CHANNEL_FORMAT_MAP = {
@@ -34,11 +64,9 @@ const CHANNEL_FORMAT_MAP = {
 };
 
 // For each stage: the tone/intent guidance the AI should apply to every format
-const STAGE_FORMAT_GUIDANCE = {
-  "Awareness":     "educational, wide-reach — surface the problem, inform, build trust. Avoid sales language.",
-  "Consideration": "comparison or framework — help the audience evaluate options and build confidence.",
-  "Decision":      "action-oriented — remove friction, speak directly to the decision, include a clear next step."
-};
+const STAGE_FORMAT_GUIDANCE = Object.fromEntries(
+  Object.entries(STAGE_MODEL).map(([stage, meta]) => [stage, meta.guidance])
+);
 
 // Maps legacy/vague channel names to canonical keys — handles old data.json values
 const CHANNEL_ALIAS_MAP = {
@@ -61,6 +89,82 @@ const CHANNEL_ALIAS_MAP = {
   "youtube":                "YouTube"
 };
 
+const CHANNEL_META = {
+  Instagram: {
+    label: "Instagram",
+    url: "https://www.instagram.com/artflaneur.art/",
+    color: "#e4405f",
+    buttonLabel: "Open Instagram"
+  },
+  LinkedIn: {
+    label: "LinkedIn",
+    url: "https://www.linkedin.com/company/flaneurart/",
+    color: "#0a66c2",
+    buttonLabel: "Open LinkedIn"
+  },
+  YouTube: {
+    label: "YouTube",
+    url: "https://www.youtube.com/@ArtFlaneur",
+    color: "#ff0033",
+    buttonLabel: "Open YouTube"
+  },
+  Facebook: {
+    label: "Facebook",
+    url: "https://www.facebook.com/artflaneur.com.au",
+    color: "#1877f2",
+    buttonLabel: "Open Facebook"
+  },
+  "email newsletter": {
+    label: "Newsletter",
+    url: "https://subscribe-forms.beehiiv.com/a9dc714a-eb34-4b33-95fb-685829e6c477",
+    color: "#b7791f",
+    buttonLabel: "Open Newsletter"
+  },
+  "website article": {
+    label: "Website",
+    url: "https://www.artflaneur.art/stories",
+    color: "#102b25",
+    buttonLabel: "Open Website"
+  },
+  "PDF / slides": {
+    label: "Slides",
+    url: "https://www.artflaneur.art/",
+    color: "#c7653a",
+    buttonLabel: "Open Site"
+  },
+  TikTok: {
+    label: "TikTok",
+    url: null,
+    color: "#111111",
+    buttonLabel: "Open TikTok"
+  },
+  "X / Twitter": {
+    label: "X / Twitter",
+    url: null,
+    color: "#111111",
+    buttonLabel: "Open X"
+  }
+};
+
+const CHANNEL_META_ALIAS_MAP = {
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  twitter: "X / Twitter",
+  "x / twitter": "X / Twitter",
+  newsletter: "email newsletter",
+  "email newsletter": "email newsletter",
+  email: "email newsletter",
+  blog: "website article",
+  website: "website article",
+  "website article": "website article",
+  "pdf / slides": "PDF / slides",
+  pdf: "PDF / slides",
+  slides: "PDF / slides"
+};
+
 // Normalise a raw channel list to canonical CHANNEL_FORMAT_MAP keys; fall back to all channels
 function normaliseChannels(channels) {
   const canonical = Object.keys(CHANNEL_FORMAT_MAP);
@@ -69,6 +173,86 @@ function normaliseChannels(channels) {
   )].filter((c) => CHANNEL_FORMAT_MAP[c]);
   // If nothing matched after normalisation, return ALL channels (safe fallback)
   return mapped.length ? mapped : canonical;
+}
+
+function getChannelMeta(channel) {
+  const raw = String(channel || "").trim();
+  if (!raw) return null;
+
+  const normalized = CHANNEL_META_ALIAS_MAP[normalizeLabel(raw)] || CHANNEL_ALIAS_MAP[raw] || raw;
+  const meta = CHANNEL_META[normalized];
+
+  return meta
+    ? { ...meta, key: normalized, raw }
+    : null;
+}
+
+function renderChannelLogo(channel, className = "") {
+  const meta = typeof channel === "string" ? getChannelMeta(channel) : channel;
+  if (!meta) {
+    return "";
+  }
+
+  let icon = "";
+
+  switch (meta.key) {
+    case "Instagram":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"></circle></svg>`;
+      break;
+    case "LinkedIn":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 10.5V16"></path><path d="M8 8.1h.01"></path><path d="M12 16v-3.2c0-1.6.9-2.5 2.2-2.5 1.4 0 2 .9 2 2.5V16"></path></svg>`;
+      break;
+    case "YouTube":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="4"></rect><path d="M10 9.2 15 12l-5 2.8V9.2z" fill="currentColor" stroke="none"></path></svg>`;
+      break;
+    case "Facebook":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M13.5 20V13h2.2l.3-2.5h-2.5V9.3c0-.8.3-1.4 1.4-1.4H16V6h-1.8c-2.1 0-3.2 1.2-3.2 3.3v1.2H9v2.5h2.2V20"></path></svg>`;
+      break;
+    case "email newsletter":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"></rect><path d="M5.5 8l6.5 5 6.5-5"></path></svg>`;
+      break;
+    case "website article":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.8 12h16.4"></path><path d="M12 3.5c2.4 2.2 3.9 5.3 3.9 8.5 0 3.2-1.5 6.3-3.9 8.5"></path><path d="M12 3.5c-2.4 2.2-3.9 5.3-3.9 8.5 0 3.2 1.5 6.3 3.9 8.5"></path></svg>`;
+      break;
+    case "PDF / slides":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5.5h12v9H6z"></path><path d="M9 18.5h6"></path><path d="M12 14.5v4"></path></svg>`;
+      break;
+    case "TikTok":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v8.2a3.8 3.8 0 1 1-2.7-3.6"></path><path d="M14 4c.6 1.8 2 3 4 3.2"></path></svg>`;
+      break;
+    case "X / Twitter":
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14"></path><path d="M19 5 5 19"></path></svg>`;
+      break;
+    default:
+      icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle></svg>`;
+  }
+
+  return `<span class="channel-logo ${className}" style="--channel-color: ${escapeHtml(meta.color)};" aria-hidden="true">${icon}</span>`;
+}
+
+function renderChannelPill(channel, options = {}) {
+  const meta = getChannelMeta(channel);
+  const href = sanitizeUrl(Object.prototype.hasOwnProperty.call(options, "href") ? options.href : meta?.url);
+  const label = escapeHtml(meta?.label || String(channel || "").trim());
+  const className = ["channel-pill", options.className].filter(Boolean).join(" ");
+  const icon = meta ? renderChannelLogo(meta) : "";
+  const body = `${icon}${options.iconOnly ? "" : `<span class="channel-pill-text">${label}</span>`}`;
+
+  if (href) {
+    return `<a class="${className}" style="--channel-color: ${escapeHtml(meta?.color || "#102b25")};" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${body}</a>`;
+  }
+
+  return `<span class="${className}" style="--channel-color: ${escapeHtml(meta?.color || "#102b25")};">${body}</span>`;
+}
+
+function renderChannelActionLink(channel, className = "ghost-button-sm ghost-button-sm-social") {
+  const meta = getChannelMeta(channel);
+  const href = sanitizeUrl(meta?.url);
+  if (!href) {
+    return "";
+  }
+
+  return `<a class="${className}" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${renderChannelLogo(meta)}<span>${escapeHtml(meta.buttonLabel || `Open ${meta.label}`)}</span></a>`;
 }
 
 // Returns a multi-line string listing every channel and all its formats for a persona
@@ -88,11 +272,63 @@ function formatPairKey(pair) {
   return `${pair.channel}::${pair.format}`;
 }
 
+function getStageMeta(stage) {
+  return STAGE_MODEL[stage] || STAGE_MODEL.Awareness;
+}
+
+function getStageBadge(stage) {
+  return getStageMeta(stage).badge;
+}
+
+function getStageMotion(stage) {
+  return getStageMeta(stage).motion;
+}
+
+function normalizeProductFoundation(foundation) {
+  const goldenCircle = foundation?.goldenCircle || {};
+
+  return {
+    description: String(foundation?.description || "").trim(),
+    mission: String(foundation?.mission || "").trim(),
+    valueProposition: String(foundation?.valueProposition || "").trim(),
+    proofPoints: uniqueList(foundation?.proofPoints),
+    goldenCircle: {
+      why: String(goldenCircle.why || "").trim(),
+      how: String(goldenCircle.how || "").trim(),
+      what: String(goldenCircle.what || "").trim()
+    }
+  };
+}
+
+function getProductFoundationPromptLines() {
+  const foundation = normalizeProductFoundation(dashboardData.productFoundation || initialData.productFoundation);
+  const proofPoints = foundation.proofPoints.length ? foundation.proofPoints.join("; ") : "";
+
+  return [
+    "Art Flaneur product foundation:",
+    foundation.description ? `- Product description: ${foundation.description}` : "",
+    foundation.mission ? `- Mission: ${foundation.mission}` : "",
+    foundation.valueProposition ? `- Value proposition: ${foundation.valueProposition}` : "",
+    foundation.goldenCircle.why ? `- Golden Circle / Why: ${foundation.goldenCircle.why}` : "",
+    foundation.goldenCircle.how ? `- Golden Circle / How: ${foundation.goldenCircle.how}` : "",
+    foundation.goldenCircle.what ? `- Golden Circle / What: ${foundation.goldenCircle.what}` : "",
+    proofPoints ? `- Proof points: ${proofPoints}` : ""
+  ].filter(Boolean);
+}
+
 function isFormatScopedAiTask(taskId) {
   return taskId === "content-brief" || taskId === "full-draft";
 }
 
-function getAiFormatContext(personaName = getFocusedPersona(), taskId = activeAiTaskId) {
+function getAiTargetPersona() {
+  return activeAiPersona || getFocusedPersona();
+}
+
+function getAiTargetStage() {
+  return activeAiStage || getFocusedStage();
+}
+
+function getAiFormatContext(personaName = getAiTargetPersona(), taskId = activeAiTaskId) {
   const personaObj = dashboardData.personas.find((p) => p.name === personaName);
   const rawChannels = personaObj?.channels || [];
   const personaChannels = rawChannels.length ? normaliseChannels(rawChannels) : Object.keys(CHANNEL_FORMAT_MAP);
@@ -189,21 +425,21 @@ const initialData = {
   journey: [
     {
       stage: "Awareness",
-      description: "Audience is naming a problem or curiosity.",
-      focus: ["Educational explainers", "Trend context", "Glossaries"],
-      promptHint: "What questions appear before a buying intent exists?"
+      description: STAGE_MODEL.Awareness.description,
+      focus: STAGE_MODEL.Awareness.focus,
+      promptHint: STAGE_MODEL.Awareness.promptHint
     },
     {
       stage: "Consideration",
-      description: "Audience compares approaches, formats, or options.",
-      focus: ["Roundups", "Frameworks", "Comparison guides"],
-      promptHint: "What helps them compare with confidence?"
+      description: STAGE_MODEL.Consideration.description,
+      focus: STAGE_MODEL.Consideration.focus,
+      promptHint: STAGE_MODEL.Consideration.promptHint
     },
     {
       stage: "Decision",
-      description: "Audience is ready for a concrete next step.",
-      focus: ["Case studies", "Offers", "Calls to action"],
-      promptHint: "What removes friction from action?"
+      description: STAGE_MODEL.Decision.description,
+      focus: STAGE_MODEL.Decision.focus,
+      promptHint: STAGE_MODEL.Decision.promptHint
     }
   ],
   clusters: [
@@ -303,6 +539,22 @@ const initialData = {
     Review: [],
     Published: []
   },
+  productFoundation: {
+    description: "Art Flaneur is a cultural discovery and marketing platform that helps people find meaningful art experiences and helps galleries and festivals make those experiences easier to discover, navigate, and convert.",
+    mission: "Make contemporary art easier to discover, navigate, and act on for audiences and cultural organizers.",
+    valueProposition: "Art Flaneur connects cultural audiences with relevant art experiences while giving galleries and festivals clearer discoverability, visitor-flow, and growth tools.",
+    proofPoints: [
+      "city-level art discovery and route logic",
+      "discoverability-focused content strategy",
+      "support for galleries, biennales, and cultural tourists",
+      "AI-assisted editorial planning and production"
+    ],
+    goldenCircle: {
+      why: "Because art becomes more valuable when more people can confidently find, understand, and move through it.",
+      how: "By combining curated discovery, route thinking, cultural context, and marketer-friendly content systems in one workflow.",
+      what: "A platform and editorial operating layer for art discovery, audience growth, and cultural experience planning."
+    }
+  },
   channels: [],
   calendar: [],
   hints: [
@@ -312,11 +564,11 @@ const initialData = {
     },
     {
       title: "One cluster, many entry points",
-      body: "A strong cluster has one core topic and several subtopics that help different personas enter the same conversation."
+      body: "A strong cluster is one core topic, and every supporting idea below it should stay nested as a subtopic inside that topic."
     },
     {
       title: "Match content to buyer intent",
-      body: "Awareness content should educate. Consideration content should compare. Decision content should reduce friction and move to action."
+      body: "Awareness attracts, Consideration engages, and Decision delights by making the next step feel clear and low-friction."
     },
     {
       title: "Use English as your operating language",
@@ -357,6 +609,14 @@ const personaFilter = document.querySelector("#personaFilter");
 const stageFilter = document.querySelector("#stageFilter");
 const overviewMetrics = document.querySelector("#overviewMetrics");
 const workflowGuide = document.querySelector("#workflowGuide");
+const brandFoundationForm = document.querySelector("#brandFoundationForm");
+const productDescriptionInput = document.querySelector("#productDescription");
+const productMissionInput = document.querySelector("#productMission");
+const productValuePropInput = document.querySelector("#productValueProp");
+const goldenCircleWhyInput = document.querySelector("#goldenCircleWhy");
+const goldenCircleHowInput = document.querySelector("#goldenCircleHow");
+const goldenCircleWhatInput = document.querySelector("#goldenCircleWhat");
+const productProofPointsInput = document.querySelector("#productProofPoints");
 const personaGrid = document.querySelector("#personaGrid");
 const journeyGrid = document.querySelector("#journeyGrid");
 const clusterGrid = document.querySelector("#clusterGrid");
@@ -399,6 +659,9 @@ const briefFormat = document.querySelector("#briefFormat");
 const briefChannel = document.querySelector("#briefChannel");
 const briefPublishDate = document.querySelector("#briefPublishDate");
 const briefContentEditor = document.querySelector("#briefContentEditor");
+const briefChannelActions = document.querySelector("#briefChannelActions");
+const briefSummaryPanel = document.querySelector("#briefSummaryPanel");
+const openBriefInAiButton = document.querySelector("#openBriefInAi");
 const saveBriefButton = document.querySelector("#saveBrief");
 const advanceBriefButton = document.querySelector("#advanceBrief");
 const scheduleBriefButton = document.querySelector("#scheduleBrief");
@@ -436,6 +699,9 @@ const selectedFilters = {
 
 let activeAiTaskId = "strategy-plan";
 let activeAiFormatKey = null;
+let activeAiSourceItemId = null;
+let activeAiPersona = null;
+let activeAiStage = null;
 let latestAiRun = null;
 let activeBriefEdit = null;
 let activeEditPersonaId = null;
@@ -447,6 +713,36 @@ function clone(value) {
 
 function normalizeLabel(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(raw);
+    const protocol = parsed.protocol.toLowerCase();
+    return protocol === "http:" || protocol === "https:" || protocol === "mailto:"
+      ? parsed.toString()
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function renderOption(value, label, selected = false) {
+  return `<option value="${escapeHtml(value)}"${selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
 function uniqueList(values) {
@@ -462,6 +758,10 @@ function normalizeCluster(cluster) {
     summary: cluster?.summary || "AI-generated cluster summary.",
     subtopics: uniqueList(cluster?.subtopics)
   };
+}
+
+function getClusterSubtopics(cluster) {
+  return uniqueList(cluster?.subtopics);
 }
 
 function generateId() {
@@ -568,9 +868,11 @@ function loadState() {
       ...clone(initialData),
       ...parsed,
       dataVersion: DATA_VERSION,
+      journey: clone(initialData.journey),
       hints: clone(initialData.hints),
       aiTasks: clone(initialData.aiTasks),
       personas,
+      productFoundation: normalizeProductFoundation(parsed.productFoundation || initialData.productFoundation),
       clusters: rawClusters.map((cluster) => normalizeCluster(cluster)),
       pipeline: Object.fromEntries(
         Object.entries({ ...clone(initialData.pipeline), ...(parsed.pipeline || {}) }).map(([status, items]) => [
@@ -638,9 +940,11 @@ async function initServerSync() {
       ...clone(initialData),
       ...serverData,
       dataVersion: DATA_VERSION,
+      journey: clone(initialData.journey),
       hints: clone(initialData.hints),
       aiTasks: clone(initialData.aiTasks),
       personas,
+      productFoundation: normalizeProductFoundation(serverData.productFoundation || initialData.productFoundation),
       clusters: rawClusters.map((cluster) => normalizeCluster(cluster)),
       pipeline: Object.fromEntries(
         Object.entries({ ...clone(initialData.pipeline), ...(serverData.pipeline || {}) }).map(([status, items]) => [
@@ -745,29 +1049,171 @@ function getActiveAiTask() {
   return dashboardData.aiTasks.find((task) => task.id === activeAiTaskId) || dashboardData.aiTasks[0] || null;
 }
 
+function normalizeAiTypography(text) {
+  return String(text || "")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2212]/g, "-");
+}
+
+function normalizeAiArtifact(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeAiArtifact(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, normalizeAiArtifact(entry)])
+    );
+  }
+
+  return typeof value === "string" ? normalizeAiTypography(value) : value;
+}
+
 function extractAppData(text) {
   // Unescape HTML entities in case the text went through JSON serialisation
   const normalized = String(text || "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+  const sanitized = normalizeAiTypography(normalized);
 
-  const match = normalized.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
+  const match = sanitized.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
 
   if (!match) {
-    return { appData: null, displayText: String(text || "").trim() };
+    return { appData: null, displayText: normalizeAiTypography(text).trim() };
   }
 
   try {
     // Strip markdown code fences the model sometimes wraps around JSON
     const raw = match[1].replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    const appData = JSON.parse(raw);
-    const displayText = normalized.replace(match[0], "").trim();
+    const appData = normalizeAiArtifact(JSON.parse(raw));
+    const displayText = sanitized.replace(match[0], "").trim();
     return { appData, displayText };
   } catch (err) {
     console.warn("[extractAppData] JSON parse failed:", err.message, "\nRaw:", match[1].slice(0, 200));
-    return { appData: null, displayText: String(text || "").trim() };
+    return { appData: null, displayText: normalizeAiTypography(text).trim() };
   }
+}
+
+function getStructuredAiDisplayText(appData, fallbackText = "") {
+  if (!appData) {
+    return String(fallbackText || "").trim();
+  }
+
+  const items = Array.isArray(appData.contentItems) && appData.contentItems.length
+    ? appData.contentItems
+    : (appData.contentItem ? [appData.contentItem] : []);
+
+  if ((appData.type === "content-brief" || appData.type === "full-draft") && items.length) {
+    const renderedItems = items
+      .map((item, index) => {
+        const content = String(item?.briefContent || "").trim();
+        if (!content) {
+          return "";
+        }
+
+        if (items.length === 1) {
+          return content;
+        }
+
+        const formatLabel = [item?.format, item?.channel].filter(Boolean).join(" - ");
+        const heading = formatLabel || `Item ${index + 1}`;
+        return [`### ${heading}`, content].join("\n\n");
+      })
+      .filter(Boolean);
+
+    if (renderedItems.length) {
+      return renderedItems.join("\n\n===\n\n");
+    }
+  }
+
+  return String(fallbackText || "").trim();
+}
+
+function parseMarkdownSections(text) {
+  const sections = [];
+  let current = null;
+
+  String(text || "")
+    .split(/\r?\n/)
+    .forEach((line) => {
+      const headingMatch = line.match(/^#{1,3}\s+(.+)$/);
+      if (headingMatch) {
+        current = { heading: headingMatch[1].trim(), content: [] };
+        sections.push(current);
+        return;
+      }
+
+      if (current) {
+        current.content.push(line);
+      }
+    });
+
+  return sections.map((section) => ({
+    heading: section.heading,
+    content: section.content.join("\n").trim()
+  }));
+}
+
+function getBriefSectionContent(text, headingStarts) {
+  const sections = parseMarkdownSections(text);
+  const match = sections.find((section) =>
+    headingStarts.some((heading) => normalizeLabel(section.heading).startsWith(normalizeLabel(heading)))
+  );
+
+  return match?.content || "";
+}
+
+function renderBriefSummary(item) {
+  if (!briefSummaryPanel) {
+    return;
+  }
+
+  const content = String(briefContentEditor?.value || item?.briefContent || "").trim();
+  const formatLabel = [briefFormat?.value || item?.format, briefChannel?.value || item?.channel].filter(Boolean).join(" - ");
+  const summaryItems = [
+    formatLabel ? { label: "Format", value: formatLabel } : null,
+    { label: "Objective", value: getBriefSectionContent(content, ["Objective"]) },
+    { label: "Core Angle", value: getBriefSectionContent(content, ["Core Angle", "Core Angle / Thesis"]) },
+    { label: "CTA", value: getBriefSectionContent(content, ["CTA"]) },
+    { label: "Success Signal", value: getBriefSectionContent(content, ["Success Signal"]) },
+    { label: "Target Length", value: getBriefSectionContent(content, ["Target Length"]) }
+  ].filter((entry) => entry && entry.value);
+
+  briefSummaryPanel.innerHTML = summaryItems.length
+    ? summaryItems
+      .map(
+        (entry) => `
+          <article class="brief-summary-item">
+            <span class="field-label">${escapeHtml(entry.label)}</span>
+            <p class="brief-summary-value">${escapeHtml(entry.value)}</p>
+          </article>
+        `
+      )
+      .join("")
+    : '<p class="brief-summary-empty">No structured headings yet. Save or paste a brief with sections like Objective, Core Angle, CTA, and Success Signal.</p>';
+
+  if (openBriefInAiButton) {
+    openBriefInAiButton.disabled = !content;
+  }
+}
+
+function renderBriefChannelActions(item) {
+  if (!briefChannelActions) {
+    return;
+  }
+
+  const channel = String(briefChannel?.value || item?.channel || "").trim();
+  const action = channel ? renderChannelActionLink(channel, "ghost-button-sm ghost-button-sm-social brief-channel-action") : "";
+
+  if (action) {
+    briefChannelActions.innerHTML = action;
+    briefChannelActions.hidden = false;
+    return;
+  }
+
+  briefChannelActions.innerHTML = "";
+  briefChannelActions.hidden = true;
 }
 
 function formatHistoryTime(value) {
@@ -949,7 +1395,7 @@ function openBriefEditor(itemId) {
   briefModalTitle.value = item.title;
 
   briefPersonaSelect.innerHTML = dashboardData.personas
-    .map((p) => `<option value="${p.name}"${p.name === item.persona ? " selected" : ""}>${p.name}</option>`)
+    .map((p) => renderOption(p.name, p.name, p.name === item.persona))
     .join("");
 
   briefStageSelect.value = item.stage;
@@ -961,9 +1407,10 @@ function openBriefEditor(itemId) {
 
   // Show format/channel badge
   if (briefFormatBadge) {
-    const parts = [item.format, item.channel].filter(Boolean);
-    if (parts.length) {
-      briefFormatBadge.textContent = parts.join(" · ");
+    const formatText = item.format ? `<span class="brief-format-text">${escapeHtml(item.format)}</span>` : "";
+    const channelBadge = item.channel ? renderChannelPill(item.channel, { className: "channel-pill--inline channel-pill--badge", link: false, href: null }) : "";
+    if (formatText || channelBadge) {
+      briefFormatBadge.innerHTML = [formatText, channelBadge].filter(Boolean).join('<span class="brief-badge-sep">·</span>');
       briefFormatBadge.hidden = false;
     } else {
       briefFormatBadge.hidden = true;
@@ -973,6 +1420,8 @@ function openBriefEditor(itemId) {
   const nextStatus = getNextStatus(found.status);
   advanceBriefButton.textContent = nextStatus ? `Advance to ${nextStatus}` : "Already published";
   advanceBriefButton.disabled = !nextStatus;
+  renderBriefSummary(item);
+  renderBriefChannelActions(item);
 
   briefModal.hidden = false;
   briefContentEditor.focus();
@@ -1011,6 +1460,34 @@ function saveBriefFromModal() {
   saveState();
   renderAll();
   setAiStatus("Brief saved", "success");
+}
+
+function setAiDraftContextFromItem(item) {
+  if (!item) return;
+
+  activeAiSourceItemId = item.id;
+  activeAiPersona = item.persona || null;
+  activeAiStage = item.stage || null;
+  activeAiTaskId = "full-draft";
+  activeAiFormatKey = item.format && item.channel
+    ? formatPairKey({ format: item.format, channel: item.channel })
+    : null;
+
+  renderAll();
+  showSection("ai");
+  setAiStatus(`Draft prompt ready from brief: ${item.title}`, "success");
+}
+
+function openBriefInAiStudio() {
+  if (!activeBriefEdit) return;
+
+  saveBriefFromModal();
+
+  const found = findContentItemById(activeBriefEdit.id);
+  if (!found) return;
+
+  closeBriefEditor();
+  setAiDraftContextFromItem(found.item);
 }
 
 function advanceFromBriefModal() {
@@ -1137,6 +1614,10 @@ function saveEditPersona(event) {
     selectedFilters.persona = newName;
   }
 
+  if (activeAiPersona === oldName) {
+    activeAiPersona = newName;
+  }
+
   saveState();
   renderAll();
   editPersonaModal.hidden = true;
@@ -1166,17 +1647,6 @@ function removeCalendarEntry(entryId) {
   saveState();
   renderAll();
 }
-
-const PLATFORM_EMOJI = {
-  Instagram: "📸",
-  YouTube: "▶️",
-  LinkedIn: "💼",
-  TikTok: "🎵",
-  Newsletter: "📧",
-  Blog: "✍️",
-  Facebook: "🔵",
-  "X / Twitter": "✖️"
-};
 
 function getChannelLatest(channel) {
   if (!channel.snapshots.length) return null;
@@ -1250,9 +1720,16 @@ async function fetchYouTubeStats(channelId) {
   setAiStatus("Fetching YouTube stats…", "loading");
 
   try {
-    const response = await fetch(
-      `/api/youtube/stats?channelId=${encodeURIComponent(channel.channelId)}&apiKey=${encodeURIComponent(channel.apiKey)}`
-    );
+    const response = await fetch("/api/youtube/stats", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        channelId: channel.channelId,
+        apiKey: channel.apiKey
+      })
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -1277,7 +1754,7 @@ function renderChannelSparkline(snapshots) {
 
   const bars = sorted.map((s) => {
     const pct = Math.round(((s.count - min) / range) * 100);
-    return `<span class="spark-bar" style="--h:${Math.max(pct, 8)}%" title="${s.date}: ${formatFollowers(s.count)}"></span>`;
+    return `<span class="spark-bar" style="--h:${Math.max(pct, 8)}%" title="${escapeHtml(s.date)}: ${formatFollowers(s.count)}"></span>`;
   }).join("");
 
   return `<div class="spark-chart">${bars}</div>`;
@@ -1304,16 +1781,17 @@ function renderChannels() {
           ? `<span class="channel-delta channel-delta-down">${formatFollowers(delta)}</span>`
           : `<span class="channel-delta channel-delta-flat">—</span>`;
 
-    const emoji = PLATFORM_EMOJI[channel.platform] || "🌐";
+    const meta = getChannelMeta(channel.platform);
     const isYouTube = channel.platform === "YouTube" && channel.apiKey && channel.channelId;
+    const profileUrl = sanitizeUrl(channel.url || meta?.url || "");
 
     return `
       <article class="channel-card">
         <div class="channel-card-head">
-          <div class="channel-platform-icon">${emoji}</div>
+          <div class="channel-platform-icon" style="--channel-color: ${escapeHtml(meta?.color || "#102b25")};">${meta ? renderChannelLogo(meta) : renderChannelPill(channel.platform, { iconOnly: true, href: null })}</div>
           <div>
-            <p class="card-label eyebrow">${channel.platform}</p>
-            <h4 class="channel-handle">${channel.handle}</h4>
+            <p class="card-label eyebrow">${escapeHtml(channel.platform)}</p>
+            <h4 class="channel-handle">${escapeHtml(channel.handle)}</h4>
           </div>
           <div class="channel-count-block">
             ${count !== null
@@ -1322,18 +1800,18 @@ function renderChannels() {
           </div>
         </div>
         ${renderChannelSparkline(channel.snapshots)}
-        ${latest ? `<p class="channel-last-updated">Last logged ${latest.date}</p>` : ""}
+        ${latest ? `<p class="channel-last-updated">Last logged ${escapeHtml(latest.date)}</p>` : ""}
         <div class="channel-card-actions">
           <div class="channel-log-row">
             <input class="channel-count-input" type="number" min="0" placeholder="Log today's count"
-              id="count-input-${channel.id}" />
-            <button class="ghost-button-sm" type="button" data-log-channel="${channel.id}">Log</button>
+              id="count-input-${escapeHtml(channel.id)}" />
+            <button class="ghost-button-sm" type="button" data-log-channel="${escapeHtml(channel.id)}">Log</button>
           </div>
           ${isYouTube
-            ? `<button class="ghost-button-sm" type="button" data-fetch-youtube="${channel.id}">Auto-fetch ▶️</button>`
+            ? `<button class="ghost-button-sm" type="button" data-fetch-youtube="${escapeHtml(channel.id)}">Auto-fetch ▶️</button>`
             : ""}
-          ${channel.url ? `<a class="ghost-button-sm channel-link" href="${channel.url}" target="_blank" rel="noopener noreferrer">View profile ↗</a>` : ""}
-          <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-channel="${channel.id}">Remove</button>
+          ${profileUrl ? `<a class="ghost-button-sm channel-link ghost-button-sm-social" href="${escapeHtml(profileUrl)}" target="_blank" rel="noopener noreferrer">${meta ? renderChannelLogo(meta) : ""}<span>${escapeHtml(meta?.buttonLabel || "View profile")}</span></a>` : ""}
+          <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-channel="${escapeHtml(channel.id)}">Remove</button>
         </div>
       </article>
     `;
@@ -1364,7 +1842,7 @@ function openEditCluster(key) {
   editClusterTitleInput.value = cluster.title;
 
   editClusterPersonaSelect.innerHTML = dashboardData.personas
-    .map((p) => `<option value="${p.name}"${p.name === cluster.persona ? " selected" : ""}>${p.name}</option>`)
+    .map((p) => renderOption(p.name, p.name, p.name === cluster.persona))
     .join("");
 
   editClusterIntentSelect.value = cluster.intent;
@@ -1405,10 +1883,10 @@ function openBriefFromCluster(key) {
   const cluster = dashboardData.clusters.find((c) => clusterKey(c) === key);
   if (!cluster) return;
 
-  // Set filters to match cluster
-  selectedFilters.persona = cluster.persona;
-  selectedFilters.stage = cluster.intent;
+  activeAiPersona = cluster.persona || null;
+  activeAiStage = cluster.intent || null;
   activeAiTaskId = "content-brief";
+  activeAiSourceItemId = null;
 
   renderAll();
   buildPrompt();
@@ -1526,10 +2004,13 @@ function loadAiHistoryEntry(entryId) {
 
   latestAiRun = entry;
   activeAiTaskId = entry.taskId;
+  activeAiSourceItemId = null;
+  activeAiPersona = null;
+  activeAiStage = null;
   renderHints();
   buildPrompt();
   promptOutput.value = getHistoryPrompt(entry);
-  aiResponse.value = entry.displayText;
+  aiResponse.value = getStructuredAiDisplayText(entry.appData, entry.displayText || entry.rawText);
   syncTextPanels();
   updateApplyState();
   showSection("ai");
@@ -1556,23 +2037,25 @@ function setAiStatus(text, mode = "idle") {
 function buildFilters() {
   const personaOptions = ["All personas", ...dashboardData.personas.map((persona) => persona.name)];
   const stageOptions = ["All stages", ...dashboardData.journey.map((item) => item.stage)];
+  const personaFilterValue = activeAiPersona || selectedFilters.persona;
+  const stageFilterValue = activeAiStage || selectedFilters.stage;
 
   personaFilter.innerHTML = personaOptions
-    .map((option) => `<option value="${option}">${option}</option>`)
+    .map((option) => renderOption(option, option))
     .join("");
-  personaFilter.value = selectedFilters.persona;
+  personaFilter.value = personaFilterValue;
 
   stageFilter.innerHTML = stageOptions
-    .map((option) => `<option value="${option}">${option}</option>`)
+    .map((option) => renderOption(option, option === "All stages" ? option : getStageBadge(option)))
     .join("");
-  stageFilter.value = selectedFilters.stage;
+  stageFilter.value = stageFilterValue;
 
   contentPersona.innerHTML = dashboardData.personas
-    .map((persona) => `<option value="${persona.name}">${persona.name}</option>`)
+    .map((persona) => renderOption(persona.name, persona.name))
     .join("");
 
   clusterPersona.innerHTML = dashboardData.personas
-    .map((persona) => `<option value="${persona.name}">${persona.name}</option>`)
+    .map((persona) => renderOption(persona.name, persona.name))
     .join("");
 
   const defaultClusterPersona = selectedFilters.persona !== "All personas"
@@ -1667,6 +2150,7 @@ function renderOverview() {
   const focusedPersona = getFocusedPersona();
   const focusedStage = getFocusedStage();
   const weakestCluster = getLargestGapCluster() || getFocusedCluster(focusedStage);
+  const foundation = normalizeProductFoundation(dashboardData.productFoundation || initialData.productFoundation);
 
   const metrics = [
     {
@@ -1695,9 +2179,9 @@ function renderOverview() {
     .map(
       (metric) => `
         <article class="metric-card">
-          <p class="metric-label">${metric.label}</p>
+          <p class="metric-label">${escapeHtml(metric.label)}</p>
           <strong class="metric-value">${metric.value}</strong>
-          <p class="metric-detail">${metric.detail}</p>
+          <p class="metric-detail">${escapeHtml(metric.detail)}</p>
         </article>
       `
     )
@@ -1735,16 +2219,26 @@ function renderOverview() {
         <article class="launchpad-card">
           <div class="launchpad-step">${step.index}</div>
           <div class="launchpad-content">
-            <h4 class="launchpad-title">${step.title}</h4>
-            <p class="launchpad-copy">${step.detail}</p>
+            <h4 class="launchpad-title">${escapeHtml(step.title)}</h4>
+            <p class="launchpad-copy">${escapeHtml(step.detail)}</p>
           </div>
-          <button class="ghost-button launchpad-button" type="button" data-jump-section="${step.section}">
-            ${step.action}
+          <button class="ghost-button launchpad-button" type="button" data-jump-section="${escapeHtml(step.section)}">
+            ${escapeHtml(step.action)}
           </button>
         </article>
       `
     )
     .join("");
+
+  if (brandFoundationForm) {
+    productDescriptionInput.value = foundation.description;
+    productMissionInput.value = foundation.mission;
+    productValuePropInput.value = foundation.valueProposition;
+    goldenCircleWhyInput.value = foundation.goldenCircle.why;
+    goldenCircleHowInput.value = foundation.goldenCircle.how;
+    goldenCircleWhatInput.value = foundation.goldenCircle.what;
+    productProofPointsInput.value = foundation.proofPoints.join(", ");
+  }
 }
 
 function renderPersonas() {
@@ -1758,26 +2252,26 @@ function renderPersonas() {
               <div class="card-head card-head-split">
                 <div>
                   <p class="card-label eyebrow">Persona</p>
-                  <h4 class="persona-name">${persona.name}</h4>
+                  <h4 class="persona-name">${escapeHtml(persona.name)}</h4>
                 </div>
                 <div class="card-actions-pair">
-                  <button class="ghost-button card-action" type="button" data-edit-persona="${persona.id}">
+                  <button class="ghost-button card-action" type="button" data-edit-persona="${escapeHtml(persona.id)}">
                     Edit
                   </button>
-                  <button class="ghost-button card-action" type="button" data-delete-persona="${persona.id}">
+                  <button class="ghost-button card-action" type="button" data-delete-persona="${escapeHtml(persona.id)}">
                     Delete
                   </button>
                 </div>
               </div>
-              <p class="persona-meta">${persona.role}</p>
+              <p class="persona-meta">${escapeHtml(persona.role)}</p>
               <div class="tag-row">
-                ${persona.pains.map((pain) => `<span class="tag">Pain: ${pain}</span>`).join("")}
+                ${persona.pains.map((pain) => `<span class="tag">Pain: ${escapeHtml(pain)}</span>`).join("")}
               </div>
               <div class="tag-row">
-                ${persona.goals.map((goal) => `<span class="tag">Goal: ${goal}</span>`).join("")}
+                ${persona.goals.map((goal) => `<span class="tag">Goal: ${escapeHtml(goal)}</span>`).join("")}
               </div>
               <div class="tag-row">
-                ${persona.channels.map((channel) => `<span class="tag">${channel}</span>`).join("")}
+                ${persona.channels.map((channel) => renderChannelPill(channel, { className: "tag tag--channel" })).join("")}
               </div>
             </article>
           `
@@ -1798,13 +2292,15 @@ function renderJourney() {
     .map(
       (item) => `
         <article class="journey-card" style="--stage-color: ${stageColors[item.stage]};">
-          <span class="stage-pill" data-stage="${item.stage}">${item.stage}</span>
-          <h4 class="journey-title">${item.stage}</h4>
-          <p class="journey-copy">${item.description}</p>
+          <span class="stage-pill" data-stage="${escapeHtml(item.stage)}">${getStageBadge(item.stage)}</span>
+          <h4 class="journey-title">${escapeHtml(item.stage)}</h4>
+          <p class="journey-copy">${escapeHtml(item.description)}</p>
+          <p class="journey-bridge"><strong>Inbound motion:</strong> ${getStageMotion(item.stage)}.</p>
           <ul>
-            ${item.focus.map((entry) => `<li>${entry}</li>`).join("")}
+            ${item.focus.map((entry) => `<li>${escapeHtml(entry)}</li>`).join("")}
           </ul>
-          <p class="journey-copy"><strong>Prompt cue:</strong> ${item.promptHint}</p>
+          <p class="journey-copy"><strong>For marketers:</strong> ${getStageMeta(item.stage).marketerNote}</p>
+          <p class="journey-copy"><strong>Prompt cue:</strong> ${escapeHtml(item.promptHint)}</p>
         </article>
       `
     )
@@ -1830,7 +2326,7 @@ function renderClusters() {
               <div class="cluster-persona-head">
                 <div>
                   <p class="card-label eyebrow">Persona</p>
-                  <h4 class="persona-name">${persona.name}</h4>
+                  <h4 class="persona-name">${escapeHtml(persona.name)}</h4>
                 </div>
               </div>
               <div class="cluster-stage-grid">
@@ -1841,7 +2337,7 @@ function renderClusters() {
                     return `
                       <section class="cluster-stage-column">
                         <div class="cluster-stage-head">
-                          <span class="stage-pill" data-stage="${stage.stage}">${stage.stage}</span>
+                          <span class="stage-pill" data-stage="${escapeHtml(stage.stage)}">${getStageBadge(stage.stage)}</span>
                           <span class="pipeline-count">${stageClusters.length}</span>
                         </div>
                         <div class="cluster-stage-stack">
@@ -1850,25 +2346,36 @@ function renderClusters() {
                                 .map(
                                   (cluster) => {
                                     const key = clusterKey(cluster);
+                                    const subtopics = getClusterSubtopics(cluster);
                                     return `
                                     <article class="cluster-card">
                                       <div class="cluster-head">
                                         <div>
-                                          <h4 class="cluster-title">${cluster.title}</h4>
-                                          <p class="topic-copy">${cluster.summary}</p>
+                                          <p class="cluster-structure-kicker">Topic</p>
+                                          <h4 class="cluster-title">${escapeHtml(cluster.title)}</h4>
+                                          <p class="topic-copy">${escapeHtml(cluster.summary)}</p>
                                         </div>
                                         <div class="cluster-score">
                                           <span class="card-label">coverage</span>
-                                          <strong>${cluster.score}</strong>
+                                          <strong>${escapeHtml(cluster.score)}</strong>
                                         </div>
                                       </div>
-                                      <ul>
-                                        ${cluster.subtopics.map((topic) => `<li>${topic}</li>`).join("")}
-                                      </ul>
+                                      <div class="cluster-taxonomy-bar">
+                                        <span class="cluster-taxonomy-pill">1 topic</span>
+                                        <span class="cluster-taxonomy-arrow">→</span>
+                                        <span class="cluster-taxonomy-pill">${subtopics.length} subtopics</span>
+                                      </div>
+                                      <p class="cluster-structure-copy">This card is the top-level topic. Every item below belongs under it as a supporting subtopic.</p>
+                                      <div class="subtopic-block">
+                                        <p class="cluster-structure-kicker">Subtopic cluster</p>
+                                        <ul class="subtopic-list">
+                                          ${subtopics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}
+                                        </ul>
+                                      </div>
                                       <div class="cluster-card-actions">
-                                        <button class="ghost-button-sm" type="button" data-brief-cluster="${key}">Draft brief</button>
-                                        <button class="ghost-button-sm" type="button" data-edit-cluster="${key}">Edit</button>
-                                        <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-cluster="${key}">Delete</button>
+                                        <button class="ghost-button-sm" type="button" data-brief-cluster="${escapeHtml(key)}">Draft brief</button>
+                                        <button class="ghost-button-sm" type="button" data-edit-cluster="${escapeHtml(key)}">Edit</button>
+                                        <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-cluster="${escapeHtml(key)}">Delete</button>
                                       </div>
                                     </article>
                                   `;
@@ -1903,7 +2410,7 @@ function renderPipeline() {
       return `
         <div class="pipeline-column">
           <div class="pipeline-header">
-            <strong>${status}</strong>
+            <strong>${escapeHtml(status)}</strong>
             <span class="pipeline-count">${filtered.length}</span>
           </div>
           ${filtered.length
@@ -1913,17 +2420,21 @@ function renderPipeline() {
                     <article class="pipeline-card">
                       <div>
                         <div class="pipeline-card-top">
-                          <span class="stage-pill" data-stage="${item.stage}">${item.stage}</span>
-                          ${item.format ? `<span class="format-tag${item.briefContent ? " format-tag--filled" : ""}">${item.format}</span>` : ""}
+                          <span class="stage-pill" data-stage="${escapeHtml(item.stage)}">${getStageBadge(item.stage)}</span>
+                          ${item.format ? `<span class="format-tag${item.briefContent ? " format-tag--filled" : ""}">${escapeHtml(item.format)}</span>` : ""}
                         </div>
-                        <h4 class="pipeline-title">${item.title}</h4>
-                        <p class="pipeline-copy">${item.persona}${item.channel ? ` · ${item.channel}` : ""}</p>
-                        ${item.publishDate ? `<p class="pipeline-date">${item.publishDate}</p>` : ""}
+                        <h4 class="pipeline-title">${escapeHtml(item.title)}</h4>
+                        <div class="pipeline-meta-row">
+                          <p class="pipeline-copy pipeline-copy-persona">${escapeHtml(item.persona)}</p>
+                          ${item.channel ? renderChannelPill(item.channel, { className: "channel-pill--inline channel-pill--pipeline" }) : ""}
+                        </div>
+                        ${item.publishDate ? `<p class="pipeline-date">${escapeHtml(item.publishDate)}</p>` : ""}
                       </div>
                       <div class="pipeline-card-actions">
-                        <button class="ghost-button-sm" type="button" data-open-brief="${item.id}">Open</button>
-                        ${nextStatus ? `<button class="ghost-button-sm" type="button" data-advance-item="${item.id}">→ ${nextStatus}</button>` : ""}
-                        <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-item="${item.id}">Delete</button>
+                        <button class="ghost-button-sm" type="button" data-open-brief="${escapeHtml(item.id)}">Open</button>
+                        ${item.briefContent ? `<button class="ghost-button-sm ghost-button-sm-accent" type="button" data-draft-from-brief="${escapeHtml(item.id)}">AI Draft</button>` : ""}
+                        ${nextStatus ? `<button class="ghost-button-sm" type="button" data-advance-item="${escapeHtml(item.id)}">→ ${escapeHtml(nextStatus)}</button>` : ""}
+                        <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-item="${escapeHtml(item.id)}">Delete</button>
                       </div>
                     </article>
                   `
@@ -1950,13 +2461,13 @@ function renderCalendar() {
         .map(
           (item) => `
             <article class="calendar-item">
-              <div class="calendar-date">${item.date || "TBD"}</div>
+              <div class="calendar-date">${escapeHtml(item.date || "TBD")}</div>
               <div>
-                <h4 class="calendar-title">${item.title}</h4>
-                <p class="calendar-meta">${item.channel}</p>
-                <p class="calendar-meta">${item.note}</p>
+                <h4 class="calendar-title">${escapeHtml(item.title)}</h4>
+                ${item.channel ? `<div class="calendar-meta-row">${renderChannelPill(item.channel, { className: "channel-pill--inline channel-pill--calendar" })}</div>` : ""}
+                <p class="calendar-meta">${escapeHtml(item.note)}</p>
               </div>
-              <button class="ghost-button-sm" type="button" data-remove-calendar="${item.id}">Remove</button>
+              <button class="ghost-button-sm" type="button" data-remove-calendar="${escapeHtml(item.id)}">Remove</button>
             </article>
           `
         )
@@ -1974,13 +2485,13 @@ function renderCalendar() {
     .filter((item) => item.stage === "Decision").length;
 
   const coverageSignals = [
-    `Awareness assets in flow: ${awarenessCount}.`,
-    `Consideration assets in flow: ${considerationCount}.`,
-    `Decision assets in flow: ${decisionCount}.`,
-    `Tracked personas: ${dashboardData.personas.length}. Keep each cluster tied to at least one audience segment.`
+    `${getStageBadge("Awareness")} assets in flow: ${awarenessCount}.`,
+    `${getStageBadge("Consideration")} assets in flow: ${considerationCount}.`,
+    `${getStageBadge("Decision")} assets in flow: ${decisionCount}.`,
+    `Tracked personas: ${dashboardData.personas.length}. Keep every cluster as one topic with subtopics nested under it.`
   ];
 
-  coverageList.innerHTML = coverageSignals.map((signal) => `<li>${signal}</li>`).join("");
+  coverageList.innerHTML = coverageSignals.map((signal) => `<li>${escapeHtml(signal)}</li>`).join("");
 }
 
 function buildStrategySnapshot() {
@@ -1993,6 +2504,7 @@ function buildStrategySnapshot() {
 
   return {
     filters: { ...selectedFilters },
+    productFoundation: normalizeProductFoundation(dashboardData.productFoundation || initialData.productFoundation),
     personas: dashboardData.personas.filter((persona) => isPersonaMatch(persona.name)),
     journey: dashboardData.journey.filter((item) => isStageMatch(item.stage)),
     clusters: getFilteredClusters(),
@@ -2003,16 +2515,39 @@ function buildStrategySnapshot() {
 
 function buildPrompt() {
   const task = getActiveAiTask();
-  const persona = getFocusedPersona();
-  const stage = getFocusedStage();
+  const persona = getAiTargetPersona();
+  const stage = getAiTargetStage();
   const cluster = getFocusedCluster(stage, persona);
+  const personaObj = dashboardData.personas.find((item) => item.name === persona) || null;
   const hasCluster = Boolean(cluster);
   const clusterTitle = cluster?.title || `the first ${stage.toLowerCase()} cluster for ${persona}`;
   const clusterSummary = cluster?.summary || "No saved cluster exists yet. Generate one from persona pains, goals, and channel behavior.";
+  const clusterSubtopics = getClusterSubtopics(cluster);
+  const stageBadge = getStageBadge(stage);
+  const stageMotion = getStageMotion(stage);
+  const punctuationRule = "Never use em dashes or en dashes anywhere in the response. Use a plain hyphen - or rewrite the sentence.";
 
   // Pull the live persona object to get their channels
   const { personaChannels, channelList, formatsText, formatPairs, selectedFormatPair } = getAiFormatContext(persona, task?.id);
   const stageGuidance = STAGE_FORMAT_GUIDANCE[stage] || STAGE_FORMAT_GUIDANCE["Awareness"];
+  const productFoundationLines = getProductFoundationPromptLines();
+  const personaPromptLines = [
+    personaObj?.role ? `Persona role / operating context: ${personaObj.role}.` : "",
+    Array.isArray(personaObj?.pains) && personaObj.pains.length
+      ? `Persona pains to address in the brief: ${personaObj.pains.join("; ")}.`
+      : "",
+    Array.isArray(personaObj?.goals) && personaObj.goals.length
+      ? `Persona desired outcomes: ${personaObj.goals.join("; ")}.`
+      : "",
+    personaChannels.length ? `Persona distribution channels: ${channelList}.` : ""
+  ].filter(Boolean);
+  const clusterPromptLines = [
+    `Primary cluster: ${clusterTitle}.`,
+    `Cluster summary: ${clusterSummary}`,
+    clusterSubtopics.length
+      ? `Saved subtopics nested under this topic: ${clusterSubtopics.join("; ")}.`
+      : "No saved subtopics yet. If you need a supporting angle, derive it from the cluster summary and persona pains without changing the core topic."
+  ].filter(Boolean);
 
   let promptLines = [];
 
@@ -2020,18 +2555,22 @@ function buildPrompt() {
     promptLines = [
       "You are a senior content strategist working for Art Flaneur.",
       "Develop the inbound content plan in English.",
+      punctuationRule,
+      ...productFoundationLines,
       `Focus on persona: ${persona}.`,
-      `Focus on stage: ${stage}.`,
+      `Focus on stage: ${stageBadge}.`,
+      "Use this methodology mapping in the plan: Awareness = Attract, Consideration = Engage, Decision = Delight.",
       personaChannels.length ? `Persona's distribution channels: ${channelList}.` : "",
       formatsText ? `Content formats available for this persona:\n${formatsText}` : "",
       hasCluster
         ? `Use this priority cluster as context: ${clusterTitle}.`
         : "There are no saved clusters yet, so generate the first strategic cluster from the persona details in the dashboard.",
+      "Topic cluster rule: treat each cluster as ONE top-level topic, and place every supporting angle beneath it as a subtopic inside that topic cluster.",
       `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in the real values as you write: <app-data>${JSON.stringify({type:"strategy-plan",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"},contentItem:{title:"...",persona,stage,status:"Brief"}})}</app-data>`,
       "Then write the full plan below.",
       "Return:",
       "1. Persona insight summary with pains, desired outcomes, and objections.",
-      "2. One core topic cluster and six supporting subtopics.",
+      "2. One core topic cluster and six supporting subtopics nested under that topic.",
       "3. Three article ideas ranked by inbound impact — each with a specific format and channel from the list above.",
       "4. One content brief with title, promise, outline, CTA, and distribution notes (include the format and channel).",
       "5. A short explanation of why this supports the inbound methodology."
@@ -2044,8 +2583,11 @@ function buildPrompt() {
     promptLines = [
       "You are a senior inbound content strategist working for Art Flaneur.",
       "Expand one audience persona in English so it becomes usable for content planning.",
+      punctuationRule,
+      ...productFoundationLines,
       `Focus on persona: ${persona}.`,
-      `Reflect the current buying stage context: ${stage}.`,
+      `Reflect the current buying stage context: ${stageBadge}.`,
+      "Use this methodology mapping when framing the answer: Awareness = Attract, Consideration = Engage, Decision = Delight.",
       `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"persona-depth",persona:{name:persona,role:"...",pains:["complete sentence"],goals:["complete sentence"],channels:["ExactChannelName"]}})}</app-data>`,
       "Then write the full expansion below.",
       "Return:",
@@ -2072,18 +2614,22 @@ function buildPrompt() {
     promptLines = [
       "You are a senior inbound content strategist working for Art Flaneur.",
       "Find topic cluster gaps and propose a stronger inbound structure in English.",
+      punctuationRule,
+      ...productFoundationLines,
       `Focus on persona: ${persona}.`,
-      `Focus on stage: ${stage}.`,
+      `Focus on stage: ${stageBadge}.`,
+      "Use this methodology mapping in the analysis: Awareness = Attract, Consideration = Engage, Decision = Delight.",
       hasCluster
         ? `Current weakest cluster: ${clusterTitle}.`
         : `No saved cluster exists yet. Propose the first core cluster for ${persona} at the ${stage} stage.`,
       `Cluster summary: ${clusterSummary}`,
+      "Topic cluster rule: return one top-level topic and keep every supporting idea nested beneath it as a subtopic, not as a separate peer cluster.",
       `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"cluster-gaps",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"}})}</app-data>`,
       "Then write the full analysis below.",
       "Return:",
       "1. A short diagnosis of the current gap.",
       "2. One improved core cluster with a clear promise.",
-      "3. Eight supporting subtopics with clear angles.",
+      "3. Eight supporting subtopics nested beneath that topic with clear angles.",
       "4. Two conversion assets or lead magnets.",
       "5. Internal linking notes showing how awareness, consideration, and decision content should connect."
     ];
@@ -2093,27 +2639,56 @@ function buildPrompt() {
 
   if (task?.id === "content-brief") {
     const targetFormat = selectedFormatPair || formatPairs[0] || null;
+    const selectedFormatLabel = targetFormat ? `${targetFormat.format} - ${targetFormat.channel}` : "";
+    const siblingFormatsText = targetFormat
+      ? formatPairs
+        .filter((pair) => formatPairKey(pair) !== formatPairKey(targetFormat))
+        .map((pair) => `${pair.format} - ${pair.channel}`)
+        .join(" | ")
+      : "";
     const jsonItems = targetFormat
       ? `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${targetFormat.format}","channel":"${targetFormat.channel}","briefContent":"FULL BRIEF IN MARKDOWN WITH ESCAPED NEWLINES"}`
       : "";
 
     promptLines = [
       "You are a senior inbound content strategist working for Art Flaneur.",
+      "Write a marketer-grade content brief for a human strategist and writer. Do not write the final article, post, email, or script.",
+      punctuationRule,
+      ...productFoundationLines,
       `Target persona: ${persona}.`,
-      `Target buyer's journey stage: ${stage}.`,
-      `Primary cluster: ${clusterTitle}.`,
-      `Cluster summary: ${clusterSummary}`,
+      ...personaPromptLines,
+      `Target buyer's journey stage: ${stageBadge}.`,
+      `Methodology mapping for this request: ${stage} = ${stageMotion}.`,
+      ...clusterPromptLines,
+      "Cluster structure rule: the primary cluster is the top-level topic, and all saved subtopics sit beneath that topic as supporting angles.",
       `Stage tone for every brief: ${stageGuidance}`,
+      formatsText ? `Content formats available for this persona:\n${formatsText}` : "",
+      selectedFormatLabel ? `Selected format for this brief: ${selectedFormatLabel}.` : "",
+      siblingFormatsText ? `Other formats available for this same persona and stage: ${siblingFormatsText}.` : "",
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "CRITICAL JSON RULE: Write the FULL brief inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
       targetFormat ? `Write one content brief for this format only: ${targetFormat.format} — ${targetFormat.channel}.` : "No format selected.",
+      "The brief must clearly depend on the context above. Do not invent a different audience, product, offer, or topic.",
+      "Use the product foundation to shape positioning and proof, use the persona pains/goals to shape the angle, and use the cluster plus subtopics to shape the topic and supporting points.",
+      "Remember that this asset is one format inside a wider multi-format plan for the same persona and stage. Build the brief so it has a clear job relative to the other available formats instead of trying to do everything at once.",
+      "Do not merge multiple formats into one asset. Keep the message system aligned with the wider stage plan, but make the execution native to the selected format and channel.",
+      "Pick one primary angle inside the cluster for this specific asset. The other saved subtopics may appear only as supporting proof, objections, internal-link opportunities, or follow-up angles.",
       "Each briefContent value must include:",
       "  - Format name and channel (heading)",
       "  - Working title",
-      "  - Core promise (1 sentence)",
+      "  - Role of this format in the wider stage plan: why this format exists alongside the other available formats for this persona and stage",
+      "  - Objective: what business or audience movement this asset should create at this stage",
+      "  - Persona insight: which pain, tension, or desired outcome this asset is built around",
+      "  - Core angle / thesis: the one claim or framing this piece should own",
+      "  - Why this fits Art Flaneur: 2-3 lines using the product foundation above",
+      "  - Key message hierarchy: one primary message and three supporting messages",
+      "  - Proof / evidence / examples to include",
       "  - Structure / outline (carousel = slide-by-slide; article = headings; email = subject + body; script = timed beats)",
       "  - CTA appropriate to the stage",
+      "  - Distribution notes for the selected channel and format",
+      "  - What to avoid so the writer does not drift off-persona, off-stage, or off-topic",
+      "  - Success signal: what a marketer would watch to judge whether the asset worked",
       "  - Target length or duration",
       "After the JSON line, write only a 1-2 sentence summary of what was generated. Do NOT repeat the full briefs outside the JSON. The dashboard will use briefContent from the JSON as the source of truth."
     ].filter(Boolean);
@@ -2124,22 +2699,40 @@ function buildPrompt() {
   }
 
   if (task?.id === "full-draft") {
-    const existingBriefContent = Object.values(dashboardData.pipeline)
+    const sourceItem = activeAiSourceItemId ? findContentItemById(activeAiSourceItemId)?.item || null : null;
+    const existingBriefContent = sourceItem?.briefContent || Object.values(dashboardData.pipeline)
       .flat()
       .find((item) => isPersonaMatch(item.persona) && isStageMatch(item.stage) && item.briefContent)
       ?.briefContent || null;
 
     const targetFormat = selectedFormatPair || formatPairs[0] || null;
+    const selectedFormatLabel = targetFormat ? `${targetFormat.format} - ${targetFormat.channel}` : "";
+    const siblingFormatsText = targetFormat
+      ? formatPairs
+        .filter((pair) => formatPairKey(pair) !== formatPairKey(targetFormat))
+        .map((pair) => `${pair.format} - ${pair.channel}`)
+        .join(" | ")
+      : "";
     const jsonItems = targetFormat
       ? `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${targetFormat.format}","channel":"${targetFormat.channel}","briefContent":"FULL DRAFT IN MARKDOWN WITH ESCAPED NEWLINES"}`
       : "";
 
     promptLines = [
       "You are a senior content writer working for Art Flaneur.",
+      punctuationRule,
+      ...productFoundationLines,
       `Target persona: ${persona}.`,
-      `Target buyer's journey stage: ${stage}.`,
+      `Target buyer's journey stage: ${stageBadge}.`,
+      `Methodology mapping for this request: ${stage} = ${stageMotion}.`,
       `Primary cluster: ${clusterTitle}.`,
       `Cluster summary: ${clusterSummary}`,
+      "Cluster structure rule: the cluster title is the topic, and the saved subtopics are supporting angles under that topic.",
+      ...personaPromptLines,
+      ...clusterPromptLines,
+      formatsText ? `Content formats available for this persona:\n${formatsText}` : "",
+      selectedFormatLabel ? `Selected format for this draft: ${selectedFormatLabel}.` : "",
+      siblingFormatsText ? `Other formats available for this same persona and stage: ${siblingFormatsText}.` : "",
+      sourceItem ? `Source pipeline brief: ${sourceItem.title}. Use this exact brief as the drafting source.` : "",
       existingBriefContent
         ? `Brief to expand:\n${existingBriefContent.slice(0, 1400)}`
         : "No saved brief yet. Build each draft directly from the cluster summary and persona context.",
@@ -2148,6 +2741,8 @@ function buildPrompt() {
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "CRITICAL JSON RULE: For each contentItems entry, write the FULL draft inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
       targetFormat ? `Write one complete publication-ready draft for this format only: ${targetFormat.format} — ${targetFormat.channel}.` : "No format selected.",
+      "This draft must stay native to the selected format and channel while remaining consistent with the broader multi-format stage plan for this persona.",
+      "Do not collapse the jobs of the sibling formats into this one draft. Let the selected format do its own job well.",
       "Structural rules per format type:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
@@ -2181,7 +2776,7 @@ function buildPrompt() {
 
 function renderAiFormats() {
   const task = getActiveAiTask();
-  const { formatPairs, selectedFormatPair } = getAiFormatContext(getFocusedPersona(), task?.id);
+  const { formatPairs, selectedFormatPair } = getAiFormatContext(getAiTargetPersona(), task?.id);
 
   if (!aiFormatPanel || !aiFormatList) {
     return;
@@ -2207,7 +2802,7 @@ function renderAiFormats() {
 
   if (aiFormatSelect) {
     aiFormatSelect.innerHTML = formatPairs
-      .map((pair) => `<option value="${formatPairKey(pair)}">${pair.format} — ${pair.channel}</option>`)
+      .map((pair) => renderOption(formatPairKey(pair), `${pair.format} - ${pair.channel}`))
       .join("");
     aiFormatSelect.value = selectedKey;
   }
@@ -2218,10 +2813,10 @@ function renderAiFormats() {
       const isActive = selectedFormatPair && formatPairKey(selectedFormatPair) === key;
       return `
         <article class="stack-item ${isActive ? "is-active" : ""}">
-          <button class="stack-action" type="button" data-ai-format-key="${key}" aria-pressed="${isActive}">
-            <span class="card-label eyebrow">${pair.channel}</span>
-            <span class="stack-title">${pair.format}</span>
-            <span class="stack-copy">${isActive ? "Selected for the next AI run." : "Click to target only this format."}</span>
+          <button class="stack-action" type="button" data-ai-format-key="${escapeHtml(key)}" aria-pressed="${isActive}">
+            ${renderChannelPill(pair.channel, { className: "channel-pill--inline channel-pill--stack", href: null })}
+            <span class="stack-title">${escapeHtml(pair.format)}</span>
+            <span class="stack-copy">${escapeHtml(isActive ? "Selected for the next AI run." : "Click to target only this format.")}</span>
           </button>
         </article>
       `;
@@ -2235,8 +2830,8 @@ function renderHints() {
       (hint) => `
         <article class="hint-card">
           <p class="card-label eyebrow">Hint</p>
-          <h4 class="hint-title">${hint.title}</h4>
-          <p class="hint-copy">${hint.body}</p>
+          <h4 class="hint-title">${escapeHtml(hint.title)}</h4>
+          <p class="hint-copy">${escapeHtml(hint.body)}</p>
         </article>
       `
     )
@@ -2246,10 +2841,10 @@ function renderHints() {
     .map(
       (task) => `
         <article class="stack-item ${task.id === activeAiTaskId ? "is-active" : ""}">
-          <button class="stack-action" type="button" data-ai-task="${task.id}" aria-pressed="${task.id === activeAiTaskId}">
+          <button class="stack-action" type="button" data-ai-task="${escapeHtml(task.id)}" aria-pressed="${task.id === activeAiTaskId}">
             <span class="card-label eyebrow">AI action</span>
-            <span class="stack-title">${task.title}</span>
-            <span class="stack-copy">${task.body}</span>
+            <span class="stack-title">${escapeHtml(task.title)}</span>
+            <span class="stack-copy">${escapeHtml(task.body)}</span>
           </button>
         </article>
       `
@@ -2279,12 +2874,7 @@ function showSection(sectionId) {
   });
 
   sections.forEach((section) => {
-    const shouldShow = section.id === sectionId || section.id === "overview";
-    if (section.id === "overview") {
-      section.classList.add("is-visible");
-      return;
-    }
-
+    const shouldShow = section.id === sectionId;
     section.classList.toggle("is-visible", shouldShow);
   });
 
@@ -2336,6 +2926,10 @@ function deletePersona(personaId) {
     selectedFilters.persona = "All personas";
   }
 
+  if (activeAiPersona === persona.name) {
+    activeAiPersona = null;
+  }
+
   saveState();
   renderAll();
   showSection("personas");
@@ -2379,6 +2973,27 @@ function addContentItem(event) {
   showSection("pipeline");
 }
 
+function saveBrandFoundation(event) {
+  event.preventDefault();
+
+  dashboardData.productFoundation = normalizeProductFoundation({
+    description: productDescriptionInput.value,
+    mission: productMissionInput.value,
+    valueProposition: productValuePropInput.value,
+    proofPoints: splitList(productProofPointsInput.value),
+    goldenCircle: {
+      why: goldenCircleWhyInput.value,
+      how: goldenCircleHowInput.value,
+      what: goldenCircleWhatInput.value
+    }
+  });
+
+  saveState();
+  renderAll();
+  setAiStatus("Brand foundations saved", "success");
+  showSection("overview");
+}
+
 async function runAiPlan() {
   const task = getActiveAiTask();
   const basePrompt = promptOutput.value;
@@ -2412,7 +3027,7 @@ async function runAiPlan() {
     }
 
     const parsed = extractAppData(payload.text || "");
-    aiResponse.value = parsed.displayText || payload.text || "No text returned.";
+    aiResponse.value = getStructuredAiDisplayText(parsed.appData, parsed.displayText || payload.text || "No text returned.");
     syncTextPanels();
 
     // Diagnose why appData might be null
@@ -2458,16 +3073,23 @@ async function runAiPlan() {
 
 personaFilter.addEventListener("change", (event) => {
   selectedFilters.persona = event.target.value;
+  activeAiSourceItemId = null;
+  activeAiPersona = null;
   renderAll();
 });
 
 stageFilter.addEventListener("change", (event) => {
   selectedFilters.stage = event.target.value;
+  activeAiSourceItemId = null;
+  activeAiStage = null;
   renderAll();
 });
 
 aiQuickAction?.addEventListener("click", () => {
   activeAiTaskId = "strategy-plan";
+  activeAiSourceItemId = null;
+  activeAiPersona = null;
+  activeAiStage = null;
   buildPrompt();
   showSection("ai");
   setAiStatus("Strategic plan ready");
@@ -2486,6 +3108,7 @@ aiTaskList.addEventListener("click", (event) => {
   }
 
   activeAiTaskId = trigger.dataset.aiTask;
+  activeAiSourceItemId = null;
   renderHints();
   renderAiFormats();
   buildPrompt();
@@ -2565,6 +3188,7 @@ navLinks.forEach((link) => {
 personaForm.addEventListener("submit", addPersona);
 clusterForm.addEventListener("submit", addCluster);
 contentForm.addEventListener("submit", addContentItem);
+brandFoundationForm?.addEventListener("submit", saveBrandFoundation);
 calendarForm.addEventListener("submit", addCalendarEntry);
 channelForm.addEventListener("submit", addChannel);
 editClusterForm.addEventListener("submit", saveEditCluster);
@@ -2603,6 +3227,14 @@ pipelineBoard.addEventListener("click", (event) => {
   const openTrigger = event.target.closest("[data-open-brief]");
   if (openTrigger) {
     openBriefEditor(openTrigger.dataset.openBrief);
+    return;
+  }
+
+  const draftTrigger = event.target.closest("[data-draft-from-brief]");
+  if (draftTrigger) {
+    const found = findContentItemById(draftTrigger.dataset.draftFromBrief);
+    if (!found) return;
+    setAiDraftContextFromItem(found.item);
     return;
   }
 
@@ -2665,6 +3297,20 @@ saveBriefButton.addEventListener("click", saveBriefFromModal);
 advanceBriefButton.addEventListener("click", advanceFromBriefModal);
 scheduleBriefButton.addEventListener("click", scheduleFromBriefModal);
 deleteBriefButton.addEventListener("click", deleteFromBriefModal);
+openBriefInAiButton?.addEventListener("click", openBriefInAiStudio);
+briefContentEditor?.addEventListener("input", () => {
+  const found = activeBriefEdit ? findContentItemById(activeBriefEdit.id) : null;
+  renderBriefSummary(found?.item || null);
+});
+briefFormat?.addEventListener("input", () => {
+  const found = activeBriefEdit ? findContentItemById(activeBriefEdit.id) : null;
+  renderBriefSummary(found?.item || null);
+});
+briefChannel?.addEventListener("input", () => {
+  const found = activeBriefEdit ? findContentItemById(activeBriefEdit.id) : null;
+  renderBriefSummary(found?.item || null);
+  renderBriefChannelActions(found?.item || null);
+});
 
 closeEditPersonaModalButton.addEventListener("click", () => {
   editPersonaModal.hidden = true;

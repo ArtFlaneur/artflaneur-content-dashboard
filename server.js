@@ -35,8 +35,19 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml"
 };
 
+const SECURITY_HEADERS = {
+  "Cache-Control": "no-store",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Content-Security-Policy": "default-src 'self'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+};
+
 function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  response.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...SECURITY_HEADERS
+  });
   response.end(JSON.stringify(payload));
 }
 
@@ -208,7 +219,7 @@ async function serveStatic(request, response) {
     const extension = path.extname(filePath).toLowerCase();
     response.writeHead(200, {
       "Content-Type": MIME_TYPES[extension] || "application/octet-stream",
-      "Cache-Control": "no-store"
+      ...SECURITY_HEADERS
     });
     response.end(content);
   } catch {
@@ -261,11 +272,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === "GET" && request.url.startsWith("/api/youtube/stats")) {
+  if (request.method === "POST" && request.url === "/api/youtube/stats") {
     try {
-      const url = new URL(request.url, `http://${request.headers.host}`);
-      const channelId = url.searchParams.get("channelId");
-      const apiKey = url.searchParams.get("apiKey");
+      const body = await readRequestBody(request);
+      const channelId = body.channelId;
+      const apiKey = body.apiKey;
 
       if (!channelId || !apiKey) {
         sendJson(response, 400, { error: "channelId and apiKey are required." });
