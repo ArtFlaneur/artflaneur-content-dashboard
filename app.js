@@ -1401,8 +1401,31 @@ function applyAiRun() {
   }
 
   if (artifact.type === "persona-depth") {
-    if (artifact.persona && upsertPersona(artifact.persona, persona)) {
-      applied.push("persona");
+    if (artifact.persona) {
+      // Merge fragment items: join consecutive items that look like sentence fragments
+      const mergeFragments = (arr) => {
+        if (!Array.isArray(arr)) return arr;
+        const out = [];
+        for (const item of arr) {
+          const trimmed = item.trim();
+          const isFragment = /^(and |but |or |wayfinding|,)/i.test(trimmed) || trimmed.length < 12;
+          if (isFragment && out.length) {
+            out[out.length - 1] = out[out.length - 1].replace(/[,\s]+$/, "") + ", " + trimmed.replace(/^,\s*/, "");
+          } else {
+            out.push(trimmed);
+          }
+        }
+        return out;
+      };
+      artifact.persona.pains = mergeFragments(artifact.persona.pains);
+      artifact.persona.goals = mergeFragments(artifact.persona.goals);
+      // Normalise channels to canonical keys
+      if (Array.isArray(artifact.persona.channels)) {
+        artifact.persona.channels = normaliseChannels(artifact.persona.channels);
+      }
+      if (upsertPersona(artifact.persona, persona)) {
+        applied.push("persona");
+      }
     }
   }
 
@@ -1957,13 +1980,18 @@ function buildPrompt() {
       "2. Five pains or anxieties in plain language.",
       "3. Five desired outcomes.",
       "4. Five objections that block action.",
-      "5. Four trusted channels this persona actually uses (choose only from this exact list, use exact spelling):",
+      "5. Up to 4 channels this persona uses (choose only from this exact list, use exact spelling):",
       "   Instagram | LinkedIn | YouTube | email newsletter | website article | PDF / slides",
       "6. Three messaging hooks Art Flaneur can use in content.",
       "7. Three content angles, one per buyer's journey stage.",
+      "CRITICAL JSON RULES — violating these will break the dashboard:",
+      "  - Each array item (pain, goal, channel) must be ONE complete self-contained sentence or phrase.",
+      "  - Never split a sentence across two array items. If a thought has a comma in the middle, keep it in one string.",
+      "  - No item may start with 'and', 'but', 'or', 'wayfinding', or any fragment.",
+      "  - Each pain and goal must make sense on its own without reading other items.",
+      "  - channels array: use ONLY the exact strings listed above — no descriptions, no paraphrasing.",
       "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      "The channels array must contain only values from: Instagram, LinkedIn, YouTube, email newsletter, website article, PDF / slides — no other strings.",
-      `Use this exact shape: {"type":"persona-depth","persona":{"name":"${persona}","role":"...","pains":["..."],"goals":["..."],"channels":["..."]}}`
+      `Use this exact shape: {"type":"persona-depth","persona":{"name":"${persona}","role":"...","pains":["complete sentence","complete sentence","complete sentence","complete sentence","complete sentence"],"goals":["complete sentence","complete sentence","complete sentence","complete sentence","complete sentence"],"channels":["ExactChannelName","ExactChannelName"]}}`
     ];
     weeklyFocus.textContent = `Sharpen the voice, objections, and message angles for ${persona}.`;
     runAiButton.textContent = "Run persona expansion";
