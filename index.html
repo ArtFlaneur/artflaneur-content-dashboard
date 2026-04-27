@@ -71,35 +71,6 @@
       </aside>
 
       <main class="content-area">
-        <header class="topbar">
-          <div class="topbar-copy">
-            <p class="eyebrow">Content Marketing Dashboard</p>
-            <h2>Plan content around audience intent, not random post ideas.</h2>
-            <p class="topbar-copy-note">
-              Start with one audience, one stage, and one weak topic area. The dashboard is now structured around that operating flow.
-            </p>
-          </div>
-          <div class="command-panel">
-            <div class="command-panel-head">
-              <div>
-                <p class="eyebrow">Control Panel</p>
-                <h3>Set your working focus first</h3>
-              </div>
-              <p class="command-panel-copy">Choose a persona and a buyer stage before editing clusters or running AI.</p>
-            </div>
-            <div class="topbar-actions">
-              <label class="filter-card">
-                <span>Primary persona</span>
-                <select id="personaFilter" aria-label="Filter by persona"></select>
-              </label>
-              <label class="filter-card">
-                <span>Journey stage</span>
-                <select id="stageFilter" aria-label="Filter by buyer stage"></select>
-              </label>
-              <button id="aiQuickAction" class="cta-button" type="button">Generate next move</button>
-            </div>
-          </div>
-        </header>
 
         <section id="overview" class="panel hero-panel is-visible">
           <div class="hero-copy">
@@ -468,9 +439,9 @@
             <div class="prompt-box">
               <div id="aiContextBar" class="ai-context-bar">
                 <span class="ai-context-label">Targeting:</span>
-                <span id="aiContextPersona" class="ai-context-chip">—</span>
+                <select id="personaFilter" class="ai-context-select" aria-label="Filter by persona"></select>
                 <span class="ai-context-sep">·</span>
-                <span id="aiContextStage" class="ai-context-chip">—</span>
+                <select id="stageFilter" class="ai-context-select" aria-label="Filter by buyer stage"></select>
                 <span class="ai-context-sep">·</span>
                 <span id="aiContextTask" class="ai-context-chip ai-context-task">—</span>
               </div>

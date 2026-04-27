@@ -327,8 +327,6 @@ const coverageList = document.querySelector("#coverageList");
 const learningGrid = document.querySelector("#learningGrid");
 const aiTaskList = document.querySelector("#aiTaskList");
 const promptOutput = document.querySelector("#promptOutput");
-const aiContextPersona = document.querySelector("#aiContextPersona");
-const aiContextStage = document.querySelector("#aiContextStage");
 const aiContextTask = document.querySelector("#aiContextTask");
 const aiResponse = document.querySelector("#aiResponse");
 const aiStatus = document.querySelector("#aiStatus");
@@ -347,6 +345,7 @@ const clusterPersona = document.querySelector("#clusterPersona");
 const contentPersona = document.querySelector("#contentPersona");
 const copyPromptButton = document.querySelector("#copyPrompt");
 const aiQuickAction = document.querySelector("#aiQuickAction");
+
 const briefModal = document.querySelector("#briefModal");
 const briefModalTitle = document.querySelector("#briefModalTitle");
 const briefPersonaSelect = document.querySelector("#briefPersona");
@@ -2100,9 +2099,7 @@ function buildPrompt() {
   promptOutput.value = promptLines.join("\n");
   syncTextPanels();
 
-  // Update context bar so user always knows what persona/stage/task is being targeted
-  if (aiContextPersona) aiContextPersona.textContent = persona;
-  if (aiContextStage) aiContextStage.textContent = stage;
+  // Update task chip in context bar
   if (aiContextTask) aiContextTask.textContent = task?.title || "Strategic plan";
 }
 
@@ -2328,7 +2325,7 @@ stageFilter.addEventListener("change", (event) => {
   renderAll();
 });
 
-aiQuickAction.addEventListener("click", () => {
+aiQuickAction?.addEventListener("click", () => {
   activeAiTaskId = "strategy-plan";
   buildPrompt();
   showSection("ai");
