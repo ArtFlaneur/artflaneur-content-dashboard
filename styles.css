@@ -1003,16 +1003,21 @@ textarea {
 
 .pipeline-board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-columns: repeat(5, 260px);
   gap: 14px;
+  width: max-content;
+}
+
+.pipeline-board-wrap {
   overflow-x: auto;
-  padding-bottom: 4px;
+  width: 100%;
+  padding-bottom: 6px;
 }
 
 .pipeline-column {
   display: grid;
   gap: 12px;
-  min-width: 220px;
+  width: 260px;
 }
 
 .pipeline-header {
@@ -1282,7 +1287,7 @@ textarea {
   }
 
   .pipeline-board {
-    grid-template-columns: repeat(5, minmax(200px, 1fr));
+    grid-template-columns: repeat(5, 220px);
   }
 
   .calendar-item,
