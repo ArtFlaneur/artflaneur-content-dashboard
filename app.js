@@ -1421,17 +1421,9 @@ function applyAiRun() {
       const sections = rawSections.length >= items.length ? rawSections : null;
 
       items.forEach((item, index) => {
-        let sectionText = null;
-        if (sections && item.format) {
-          // Primary: match by format name — AI may write sections in any order
-          const needle = item.format.split("(")[0].trim().toLowerCase();
-          sectionText = sections.find((s) => s.toLowerCase().includes(needle)) || null;
-        }
-        if (!sectionText && sections) {
-          // Fallback: index-based assignment
-          sectionText = sections[index] || null;
-        }
-        sectionText = sectionText || fullText;
+        // Pure index-based: sections are guaranteed to be in the same order as items
+        // because the prompt lists formats numbered 1..N and requires that exact order.
+        const sectionText = (sections && sections[index]) ? sections[index] : fullText;
         const enrichedItem = { ...item, briefContent: sectionText.trim() };
         if (upsertContentItem(enrichedItem, persona, stage)) {
           applied.push(item.format || item.title || "content item");
@@ -2060,32 +2052,26 @@ function buildPrompt() {
   }
 
   if (task?.id === "content-brief") {
-    const jsonItems = formatPairs.map((p) =>
-      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${p.format}","channel":"${p.channel}"}`
-    ).join(",\n    ");
+    const numberedFormats = formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n");
 
     promptLines = [
       "You are a senior inbound content strategist working for Art Flaneur.",
-      "Create one content brief for EACH content format listed below.",
       `Target persona: ${persona}.`,
       `Target buyer's journey stage: ${stage}.`,
       `Primary cluster: ${clusterTitle}.`,
       `Cluster summary: ${clusterSummary}`,
-      formatsText
-        ? `Persona's channels and all applicable formats:\n${formatsText}`
-        : "No channels specified for this persona.",
       `Stage tone for every brief: ${stageGuidance}`,
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
-      "After the JSON line, write the briefs.",
-      "CRITICAL FORMATTING RULE: Place a line containing ONLY === (three equals signs, nothing else) between each brief to separate them. Do NOT place === after the last brief.",
-      "For EACH format in the list above, write a complete brief that includes:",
-      "  - Format name and distribution channel (as a heading)",
-      "  - Working title written specifically for that format",
-      "  - Core promise (one sentence)",
-      "  - Structure / outline adapted to that format's rules",
-      "    (carousel = slide-by-slide; article = section headings; email = subject + body sections; script = timed beats; one-pager = key points)",
-      "  - CTA appropriate to the stage and channel",
+      `Write one content brief for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
+      numberedFormats,
+      "CRITICAL FORMATTING RULE: Separate briefs with a line containing ONLY === (nothing else). Do NOT put === after the last brief.",
+      "Each brief must include:",
+      "  - Format name and channel (heading)",
+      "  - Working title",
+      "  - Core promise (1 sentence)",
+      "  - Structure / outline (carousel = slide-by-slide; article = headings; email = subject + body; script = timed beats)",
+      "  - CTA appropriate to the stage",
       "  - Target length or duration"
     ].filter(Boolean);
     weeklyFocus.textContent = `Draft ${stage.toLowerCase()} briefs for all ${persona} channels.`;
@@ -2104,7 +2090,6 @@ function buildPrompt() {
 
     promptLines = [
       "You are a senior content writer working for Art Flaneur.",
-      "Write a complete, publication-ready draft for EACH content format listed below.",
       `Target persona: ${persona}.`,
       `Target buyer's journey stage: ${stage}.`,
       `Primary cluster: ${clusterTitle}.`,
@@ -2112,25 +2097,27 @@ function buildPrompt() {
       existingBriefContent
         ? `Brief to expand:\n${existingBriefContent.slice(0, 1400)}`
         : "No saved brief yet. Build each draft directly from the cluster summary and persona context.",
-      formatsText
-        ? `Persona's channels and all applicable formats:\n${formatsText}`
-        : "No channels specified for this persona.",
       `Stage tone for every draft: ${stageGuidance}`,
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
-      "After the JSON line, write the drafts.",
-      "CRITICAL FORMATTING RULE: Place a line containing ONLY === (three equals signs, nothing else) between each draft to separate them. Do NOT place === after the last draft.",
-      "For EACH format in the list above, write a complete, publication-ready draft. Apply the correct structural rules per format:",
+      `Write one complete publication-ready draft for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
+      formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n"),
+      "CRITICAL FORMATTING RULE: Separate drafts with a line containing ONLY === (nothing else). Do NOT put === after the last draft.",
+      "Structural rules per format type:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
-      "  - Instagram Reel / TikTok script: hook (first 3 sec), 3 points (10–15 sec each), close with CTA. 60–90 sec total.",
+      "  - Instagram Reel script: hook (first 3 sec), 3 points (10–15 sec each), close with CTA. 60–90 sec total.",
       "  - LinkedIn long-form article: introduction, 4–6 section headings, 900–1200 words, CTA at end.",
       "  - LinkedIn post: strong opener, short paragraphs, 300–500 words, closing question or CTA.",
       "  - Nurture email: subject line, preheader, greeting, hook, 2–3 body paragraphs, CTA button label, sign-off.",
-      "  - Newsletter article: headline, subheadline, 500–800 words in 3–4 paragraphs, takeaway or CTA.",
-      "  - One-pager / speaker brief: headline, one-paragraph summary, 3 key points with brief elaboration, next-step CTA.",
-      "  - Travel narrative / blog article: engaging opening, 4–6 sections, 1000–1500 words, practical CTA.",
-      "  - All formats: adapt vocabulary and references to the persona's world; every section must address a specific pain or goal."
+      "  - 3-part email sequence: label each email (Email 1 / 2 / 3), subject line + body for each.",
+      "  - Blog article: engaging opening, 4–6 sections, 1000–1500 words, practical CTA.",
+      "  - Pillar page section: 400–600 words, clear subheading, internal link notes.",
+      "  - Downloadable guide / e-book: chapter headings, intro, 3–5 main sections, conclusion + CTA.",
+      "  - Slide deck: title slide, agenda, 8–12 content slides (one point each), closing CTA slide.",
+      "  - YouTube video script: intro hook, 4–6 segments with timestamps, outro CTA.",
+      "  - YouTube Shorts script: hook (0–3s), 3 beats (10s each), CTA (last 5s).",
+      "  - All formats: adapt to the persona's world; every section addresses a specific pain or goal."
     ].filter(Boolean);
 
     weeklyFocus.textContent = `Write ${stage.toLowerCase()} drafts for all ${persona} formats.`;
