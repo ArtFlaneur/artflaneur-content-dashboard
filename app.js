@@ -701,7 +701,13 @@ function getActiveAiTask() {
 }
 
 function extractAppData(text) {
-  const match = String(text || "").match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
+  // Unescape HTML entities in case the text went through JSON serialisation
+  const normalized = String(text || "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+
+  const match = normalized.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
 
   if (!match) {
     return { appData: null, displayText: String(text || "").trim() };
@@ -711,7 +717,7 @@ function extractAppData(text) {
     // Strip markdown code fences the model sometimes wraps around JSON
     const raw = match[1].replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
     const appData = JSON.parse(raw);
-    const displayText = String(text || "").replace(match[0], "").trim();
+    const displayText = normalized.replace(match[0], "").trim();
     return { appData, displayText };
   } catch (err) {
     console.warn("[extractAppData] JSON parse failed:", err.message, "\nRaw:", match[1].slice(0, 200));
@@ -2291,10 +2297,17 @@ async function runAiPlan() {
     aiResponse.value = parsed.displayText || payload.text || "No text returned.";
     syncTextPanels();
 
-    // If AI returned text but no parseable <app-data>, warn the user visibly
-    const hasAppDataTag = /<app-data>/i.test(payload.text || "");
-    if (hasAppDataTag && !parsed.appData) {
-      setAiStatus("Response received but <app-data> JSON could not be parsed — check browser console", "error");
+    // Diagnose why appData might be null
+    const rawText = payload.text || "";
+    const hasTag = /<app-data>/i.test(rawText);
+    const hasCloseTag = /<\/app-data>/i.test(rawText);
+    if (hasTag && hasCloseTag && !parsed.appData) {
+      const rawMatch = rawText.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
+      console.warn("[extractAppData] Parse failed. Raw inside tags:", rawMatch?.[1]?.slice(0, 400));
+      setAiStatus("JSON inside <app-data> could not be parsed — check console", "error");
+    } else if (!hasTag) {
+      console.warn("[runAiPlan] No <app-data> tag in response. First 300 chars:", rawText.slice(0, 300));
+      setAiStatus("Model returned text but no <app-data> tag — prompt may need re-running", "error");
     }
 
     latestAiRun = {
