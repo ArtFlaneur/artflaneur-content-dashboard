@@ -22,6 +22,50 @@ const DEMO_CALENDAR_TITLES = [
 
 const STATUS_ORDER = ["Idea", "Brief", "Draft", "Review", "Published"];
 
+// Maps each distribution channel to the content formats that work best on it
+const CHANNEL_FORMAT_MAP = {
+  "Instagram":              ["Instagram carousel (10 slides)", "Instagram caption + visual hook", "Instagram Reel script (45–60 sec)"],
+  "TikTok":                 ["TikTok / Reel script (60–90 sec)", "short-form hook + 3 punchy points"],
+  "LinkedIn":               ["LinkedIn long-form article (800–1200 words)", "LinkedIn thought-leadership post (300–500 words)"],
+  "email outreach":         ["nurture email (250–400 words)", "3-part email sequence"],
+  "industry newsletters":   ["newsletter contributed article (500–800 words)", "newsletter short brief (150–250 words)"],
+  "cultural conferences":   ["conference talk outline or abstract", "one-page speaker brief"],
+  "partner referrals":      ["partner one-pager", "co-branded summary brief"],
+  "art fairs":              ["art fair one-pager", "print-ready exhibition note"],
+  "gallery networks":       ["gallery newsletter blurb (200–350 words)", "exhibition announcement email"],
+  "travel blogs":           ["travel narrative article (1000–1500 words)", "city guide entry (400–600 words)"],
+  "app stores":             ["in-app cultural guide entry (150–300 words)", "app feature description"],
+  "city guides":            ["city guide entry (400–600 words)", "curated top-picks list"]
+};
+
+// For each stage: the tone goal and format bias the AI should apply
+const STAGE_FORMAT_GUIDANCE = {
+  "Awareness":     "educational, wide-reach format — surface the problem, inform, build trust. Avoid sales language.",
+  "Consideration": "comparison, framework, or guide format — help the audience evaluate options and build confidence.",
+  "Decision":      "specific, action-oriented format — remove friction, speak directly to the decision, and include a clear next step."
+};
+
+// Given a persona's channels and a stage, returns the single best format to write for
+function pickBestFormat(channels, stage) {
+  // Priority: stage-appropriate channels first
+  const stageChannelPriority = {
+    "Awareness":     ["Instagram", "TikTok", "travel blogs", "city guides", "industry newsletters"],
+    "Consideration": ["LinkedIn", "industry newsletters", "email outreach", "gallery networks", "travel blogs"],
+    "Decision":      ["email outreach", "LinkedIn", "partner referrals", "art fairs", "gallery networks"]
+  };
+  const priority = stageChannelPriority[stage] || stageChannelPriority["Awareness"];
+  const preferredChannel = priority.find((c) => channels.includes(c)) || channels[0];
+  const formats = CHANNEL_FORMAT_MAP[preferredChannel];
+  return { channel: preferredChannel, format: formats ? formats[0] : "long-form article (800–1200 words)" };
+}
+
+// Returns all recommended formats for a persona across their channels (top 3)
+function getAllFormats(channels) {
+  return channels
+    .flatMap((c) => (CHANNEL_FORMAT_MAP[c] || []).slice(0, 1))
+    .slice(0, 5);
+}
+
 const initialData = {
   personas: [
     {
@@ -1836,6 +1880,15 @@ function buildPrompt() {
   const hasCluster = Boolean(cluster);
   const clusterTitle = cluster?.title || `the first ${stage.toLowerCase()} cluster for ${persona}`;
   const clusterSummary = cluster?.summary || "No saved cluster exists yet. Generate one from persona pains, goals, and channel behavior.";
+
+  // Pull the live persona object to get their channels
+  const personaObj = dashboardData.personas.find((p) => p.name === persona);
+  const personaChannels = personaObj?.channels || [];
+  const channelList = personaChannels.length ? personaChannels.join(", ") : "not specified";
+  const allFormats = personaChannels.length ? getAllFormats(personaChannels) : [];
+  const stageGuidance = STAGE_FORMAT_GUIDANCE[stage] || STAGE_FORMAT_GUIDANCE["Awareness"];
+  const { channel: primaryChannel, format: primaryFormat } = pickBestFormat(personaChannels, stage);
+
   let promptLines = [];
 
   if (!task || task.id === "strategy-plan") {
@@ -1844,18 +1897,20 @@ function buildPrompt() {
       "Develop the inbound content plan in English.",
       `Focus on persona: ${persona}.`,
       `Focus on stage: ${stage}.`,
+      personaChannels.length ? `Persona's distribution channels: ${channelList}.` : "",
+      allFormats.length ? `Best-fit content formats for this persona: ${allFormats.join(" | ")}.` : "",
       hasCluster
         ? `Use this priority cluster as context: ${clusterTitle}.`
         : "There are no saved clusters yet, so generate the first strategic cluster from the persona details in the dashboard.",
       "Return:",
       "1. Persona insight summary with pains, desired outcomes, and objections.",
       "2. One core topic cluster and six supporting subtopics.",
-      "3. Three article ideas ranked by inbound impact.",
-      "4. One content brief with title, promise, outline, CTA, and distribution notes.",
+      "3. Three article ideas ranked by inbound impact, each with a recommended format and channel.",
+      "4. One content brief with title, promise, outline, CTA, and distribution notes (include the format and channel).",
       "5. A short explanation of why this supports the inbound methodology.",
       "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
       `Use this exact shape: {"type":"strategy-plan","cluster":{"title":"${clusterTitle}","persona":"${persona}","summary":"...","intent":"${stage}","subtopics":["..."],"score":"AI draft"},"contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief"}}`
-    ];
+    ].filter(Boolean);
     weeklyFocus.textContent = `Develop ${stage.toLowerCase()} opportunities for ${persona}.`;
     runAiButton.textContent = "Run strategic plan";
   }
@@ -1909,20 +1964,25 @@ function buildPrompt() {
       "You are a senior inbound content strategist working for Art Flaneur.",
       "Create one publication-ready English content brief.",
       `Target persona: ${persona}.`,
-      `Target stage: ${stage}.`,
+      `Target buyer's journey stage: ${stage}.`,
       `Primary cluster: ${clusterTitle}.`,
       `Cluster summary: ${clusterSummary}`,
+      `Persona's distribution channels: ${channelList}.`,
+      allFormats.length ? `Content formats that work for this persona: ${allFormats.join(" | ")}.` : "",
+      `Primary format for this brief: ${primaryFormat} (distributed on ${primaryChannel}).`,
+      `Stage format guidance: ${stageGuidance}`,
       "Return:",
-      "1. Working title.",
-      "2. Audience and search intent.",
-      "3. Core promise.",
-      "4. A detailed outline with 5 to 7 sections.",
-      "5. CTA and conversion goal.",
-      "6. Distribution plan across blog, newsletter, and one social surface.",
-      "7. Suggested sources, interviews, or proof points to include.",
+      "1. Working title written for the primary format and channel.",
+      "2. Audience and search / scroll intent.",
+      "3. Core promise in one sentence.",
+      "4. Format spec: confirm the chosen format, target length/duration, and structural rules for that format.",
+      "5. A detailed outline with 5 to 7 sections adapted to the format (e.g., for carousel: slide-by-slide breakdown; for article: section headings; for email: subject line + body sections).",
+      "6. CTA and conversion goal appropriate for the stage.",
+      "7. Distribution plan: primary channel with posting specs, plus one secondary channel.",
+      "8. Suggested sources, examples, or proof points to include.",
       "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"content-brief","contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief"}}`
-    ];
+      `Use this exact shape: {"type":"content-brief","contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${primaryFormat}","channel":"${primaryChannel}"}}`
+    ].filter(Boolean);
     weeklyFocus.textContent = `Draft the next ${stage.toLowerCase()} brief around ${clusterTitle}.`;
     runAiButton.textContent = "Run content brief";
   }
@@ -1933,27 +1993,51 @@ function buildPrompt() {
       .find((item) => isPersonaMatch(item.persona) && isStageMatch(item.stage) && item.briefContent)
       ?.briefContent || null;
 
+    // Use format/channel from the saved brief item if available
+    const briefItem = Object.values(dashboardData.pipeline)
+      .flat()
+      .find((item) => isPersonaMatch(item.persona) && isStageMatch(item.stage));
+    const draftFormat = briefItem?.format || primaryFormat;
+    const draftChannel = briefItem?.channel || primaryChannel;
+
+    // Format-specific structural rules
+    const formatRules = draftFormat.toLowerCase().includes("carousel")
+      ? "Structure as exactly 10 slides. Slide 1: hook/title. Slides 2–9: one insight or point each, max 30 words per slide. Slide 10: CTA. Label each slide clearly."
+      : draftFormat.toLowerCase().includes("reel") || draftFormat.toLowerCase().includes("tiktok") || draftFormat.toLowerCase().includes("script")
+      ? "Structure as a spoken script. Include: hook (first 3 seconds), 3 main points (10–15 sec each), and a close with CTA. Total 60–90 seconds when read aloud. Use conversational, natural language."
+      : draftFormat.toLowerCase().includes("email")
+      ? "Structure as: subject line, preheader, greeting, opening hook (2–3 sentences), 2–3 body paragraphs, CTA button label, sign-off. Total 250–400 words."
+      : draftFormat.toLowerCase().includes("newsletter")
+      ? "Structure as a standalone newsletter article: headline, subheadline, body (500–800 words in 3–4 paragraphs), and a clear takeaway or CTA."
+      : draftFormat.toLowerCase().includes("linkedin")
+        && draftFormat.toLowerCase().includes("post")
+      ? "Structure as a LinkedIn post: strong opening line (no 'I started my day…'), body in short paragraphs (1–3 sentences each), end with a question or CTA. 300–500 words."
+      : draftFormat.toLowerCase().includes("one-pager") || draftFormat.toLowerCase().includes("brief")
+      ? "Structure as a one-page document: headline, one-paragraph summary, 3 key points (with brief elaboration each), and a next-step CTA. Formal but direct tone."
+      : "Write in complete, flowing prose. Open with a hook. Include 4–6 substantive sections with clear subheadings. End with a strong CTA. Target 900–1200 words.";
+
     promptLines = [
       "You are a senior content writer working for Art Flaneur.",
-      "Write a complete, publication-ready draft in English.",
+      `Write a complete, publication-ready ${draftFormat} in English.`,
       `Target persona: ${persona}.`,
-      `Target stage: ${stage}.`,
+      `Target buyer's journey stage: ${stage}.`,
+      `Distribution channel: ${draftChannel}.`,
       `Primary cluster: ${clusterTitle}.`,
       `Cluster summary: ${clusterSummary}`,
       existingBriefContent
-        ? `Brief to expand into full prose:\n${existingBriefContent.slice(0, 1400)}`
+        ? `Brief to expand:\n${existingBriefContent.slice(0, 1400)}`
         : "No saved brief yet. Build the draft directly from the cluster summary and persona context.",
-      "Requirements:",
-      "1. Write in complete, flowing prose — no bullet points or outlines.",
-      "2. Open with a hook that addresses the persona's core pain or question.",
-      "3. Include 4 to 6 substantive sections with clear subheadings.",
-      "4. End with a strong CTA aligned to the buyer's journey stage.",
-      "5. Keep length appropriate: 900–1200 words for articles, 200–280 for short social formats.",
+      `Format and structure requirements: ${formatRules}`,
+      `Stage tone guidance: ${stageGuidance}`,
+      "Additional requirements:",
+      "- Adapt vocabulary and reference points to the persona (their world, not generic content marketing language).",
+      "- Every section or slide must serve the persona's specific pain or goal — no filler.",
+      "- Match the reading level and formality to the distribution channel.",
       "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"content-brief","contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft"}}`
+      `Use this exact shape: {"type":"content-brief","contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${draftFormat}","channel":"${draftChannel}"}}`
     ].filter(Boolean);
 
-    weeklyFocus.textContent = `Write the full ${stage.toLowerCase()} draft for ${persona}.`;
+    weeklyFocus.textContent = `Write the full ${stage.toLowerCase()} ${draftFormat} for ${persona}.`;
     runAiButton.textContent = "Run full draft";
   }
 
