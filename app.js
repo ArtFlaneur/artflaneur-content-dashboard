@@ -1876,8 +1876,7 @@ function renderPipeline() {
                       <div>
                         <div class="pipeline-card-top">
                           <span class="stage-pill" data-stage="${item.stage}">${item.stage}</span>
-                          ${item.format ? `<span class="format-tag">${item.format}</span>` : ""}
-                          ${item.briefContent ? `<span class="brief-filled-dot" title="Has content">●</span>` : ""}
+                          ${item.format ? `<span class="format-tag${item.briefContent ? " format-tag--filled" : ""}">${item.format}</span>` : ""}
                         </div>
                         <h4 class="pipeline-title">${item.title}</h4>
                         <p class="pipeline-copy">${item.persona}${item.channel ? ` · ${item.channel}` : ""}</p>
