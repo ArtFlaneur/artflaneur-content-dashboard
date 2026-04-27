@@ -84,6 +84,45 @@ function getPersonaFormatPairs(channels) {
     .flatMap((c) => CHANNEL_FORMAT_MAP[c].map((f) => ({ channel: c, format: f })));
 }
 
+function formatPairKey(pair) {
+  return `${pair.channel}::${pair.format}`;
+}
+
+function isFormatScopedAiTask(taskId) {
+  return taskId === "content-brief" || taskId === "full-draft";
+}
+
+function getAiFormatContext(personaName = getFocusedPersona(), taskId = activeAiTaskId) {
+  const personaObj = dashboardData.personas.find((p) => p.name === personaName);
+  const rawChannels = personaObj?.channels || [];
+  const personaChannels = rawChannels.length ? normaliseChannels(rawChannels) : Object.keys(CHANNEL_FORMAT_MAP);
+  const formatPairs = getPersonaFormatPairs(personaChannels);
+
+  if (!isFormatScopedAiTask(taskId)) {
+    activeAiFormatKey = null;
+    return {
+      personaChannels,
+      channelList: personaChannels.join(", "),
+      formatsText: getPersonaFormatsText(personaChannels),
+      formatPairs,
+      selectedFormatPair: null
+    };
+  }
+
+  const hasSelectedPair = formatPairs.some((pair) => formatPairKey(pair) === activeAiFormatKey);
+  if (!hasSelectedPair) {
+    activeAiFormatKey = formatPairs[0] ? formatPairKey(formatPairs[0]) : null;
+  }
+
+  return {
+    personaChannels,
+    channelList: personaChannels.join(", "),
+    formatsText: getPersonaFormatsText(personaChannels),
+    formatPairs,
+    selectedFormatPair: formatPairs.find((pair) => formatPairKey(pair) === activeAiFormatKey) || null
+  };
+}
+
 const initialData = {
   personas: [
     {
@@ -326,6 +365,8 @@ const calendarList = document.querySelector("#calendarList");
 const coverageList = document.querySelector("#coverageList");
 const learningGrid = document.querySelector("#learningGrid");
 const aiTaskList = document.querySelector("#aiTaskList");
+const aiFormatPanel = document.querySelector("#aiFormatPanel");
+const aiFormatList = document.querySelector("#aiFormatList");
 const promptOutput = document.querySelector("#promptOutput");
 const aiContextTask = document.querySelector("#aiContextTask");
 const aiResponse = document.querySelector("#aiResponse");
@@ -392,6 +433,7 @@ const selectedFilters = {
 };
 
 let activeAiTaskId = "strategy-plan";
+let activeAiFormatKey = null;
 let latestAiRun = null;
 let activeBriefEdit = null;
 let activeEditPersonaId = null;
@@ -1967,13 +2009,7 @@ function buildPrompt() {
   const clusterSummary = cluster?.summary || "No saved cluster exists yet. Generate one from persona pains, goals, and channel behavior.";
 
   // Pull the live persona object to get their channels
-  const personaObj = dashboardData.personas.find((p) => p.name === persona);
-  const rawChannels = personaObj?.channels || [];
-  // normaliseChannels falls back to ALL channels if none match — prompt always has a format list
-  const personaChannels = rawChannels.length ? normaliseChannels(rawChannels) : Object.keys(CHANNEL_FORMAT_MAP);
-  const channelList = personaChannels.join(", ");
-  const formatsText = getPersonaFormatsText(personaChannels);
-  const formatPairs = getPersonaFormatPairs(personaChannels);
+  const { personaChannels, channelList, formatsText, formatPairs, selectedFormatPair } = getAiFormatContext(persona, task?.id);
   const stageGuidance = STAGE_FORMAT_GUIDANCE[stage] || STAGE_FORMAT_GUIDANCE["Awareness"];
 
   let promptLines = [];
@@ -2054,11 +2090,10 @@ function buildPrompt() {
   }
 
   if (task?.id === "content-brief") {
-    const jsonItems = formatPairs.map((p) =>
-      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${p.format}","channel":"${p.channel}","briefContent":"FULL BRIEF IN MARKDOWN WITH ESCAPED NEWLINES"}`
-    ).join(",\n    ");
-
-    const numberedFormats = formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n");
+    const targetFormat = selectedFormatPair || formatPairs[0] || null;
+    const jsonItems = targetFormat
+      ? `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${targetFormat.format}","channel":"${targetFormat.channel}","briefContent":"FULL BRIEF IN MARKDOWN WITH ESCAPED NEWLINES"}`
+      : "";
 
     promptLines = [
       "You are a senior inbound content strategist working for Art Flaneur.",
@@ -2069,9 +2104,8 @@ function buildPrompt() {
       `Stage tone for every brief: ${stageGuidance}`,
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
-      "CRITICAL JSON RULE: For each contentItems entry, write the FULL brief inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
-      `Write one content brief for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
-      numberedFormats,
+      "CRITICAL JSON RULE: Write the FULL brief inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
+      targetFormat ? `Write one content brief for this format only: ${targetFormat.format} — ${targetFormat.channel}.` : "No format selected.",
       "Each briefContent value must include:",
       "  - Format name and channel (heading)",
       "  - Working title",
@@ -2081,8 +2115,10 @@ function buildPrompt() {
       "  - Target length or duration",
       "After the JSON line, write only a 1-2 sentence summary of what was generated. Do NOT repeat the full briefs outside the JSON. The dashboard will use briefContent from the JSON as the source of truth."
     ].filter(Boolean);
-    weeklyFocus.textContent = `Draft ${stage.toLowerCase()} briefs for all ${persona} channels.`;
-    runAiButton.textContent = "Run content briefs";
+    weeklyFocus.textContent = targetFormat
+      ? `Draft a ${stage.toLowerCase()} brief for ${targetFormat.format}.`
+      : `Draft a ${stage.toLowerCase()} brief for ${persona}.`;
+    runAiButton.textContent = targetFormat ? `Run brief for ${targetFormat.channel}` : "Run content brief";
   }
 
   if (task?.id === "full-draft") {
@@ -2091,9 +2127,10 @@ function buildPrompt() {
       .find((item) => isPersonaMatch(item.persona) && isStageMatch(item.stage) && item.briefContent)
       ?.briefContent || null;
 
-    const jsonItems = formatPairs.map((p) =>
-      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${p.format}","channel":"${p.channel}","briefContent":"FULL DRAFT IN MARKDOWN WITH ESCAPED NEWLINES"}`
-    ).join(",\n    ");
+    const targetFormat = selectedFormatPair || formatPairs[0] || null;
+    const jsonItems = targetFormat
+      ? `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Draft","format":"${targetFormat.format}","channel":"${targetFormat.channel}","briefContent":"FULL DRAFT IN MARKDOWN WITH ESCAPED NEWLINES"}`
+      : "";
 
     promptLines = [
       "You are a senior content writer working for Art Flaneur.",
@@ -2108,8 +2145,7 @@ function buildPrompt() {
       `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
       `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
       "CRITICAL JSON RULE: For each contentItems entry, write the FULL draft inside briefContent as a JSON string. Escape line breaks as \\n and escape any quotes inside the content.",
-      `Write one complete publication-ready draft for each of these ${formatPairs.length} formats, IN THIS EXACT ORDER — do not skip, reorder, or combine any:`,
-      formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n"),
+      targetFormat ? `Write one complete publication-ready draft for this format only: ${targetFormat.format} — ${targetFormat.channel}.` : "No format selected.",
       "Structural rules per format type:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
@@ -2128,8 +2164,10 @@ function buildPrompt() {
       "After the JSON line, write only a 1-2 sentence summary of what was generated. Do NOT repeat the full drafts outside the JSON. The dashboard will use briefContent from the JSON as the source of truth."
     ].filter(Boolean);
 
-    weeklyFocus.textContent = `Write ${stage.toLowerCase()} drafts for all ${persona} formats.`;
-    runAiButton.textContent = "Run full drafts";
+    weeklyFocus.textContent = targetFormat
+      ? `Write a ${stage.toLowerCase()} draft for ${targetFormat.format}.`
+      : `Write a ${stage.toLowerCase()} draft for ${persona}.`;
+    runAiButton.textContent = targetFormat ? `Run draft for ${targetFormat.channel}` : "Run full draft";
   }
 
   promptOutput.value = promptLines.join("\n");
@@ -2137,6 +2175,39 @@ function buildPrompt() {
 
   // Update task chip in context bar
   if (aiContextTask) aiContextTask.textContent = task?.title || "Strategic plan";
+}
+
+function renderAiFormats() {
+  const task = getActiveAiTask();
+  const { formatPairs, selectedFormatPair } = getAiFormatContext(getFocusedPersona(), task?.id);
+
+  if (!aiFormatPanel || !aiFormatList) {
+    return;
+  }
+
+  const shouldShow = isFormatScopedAiTask(task?.id) && formatPairs.length > 0;
+  aiFormatPanel.hidden = !shouldShow;
+
+  if (!shouldShow) {
+    aiFormatList.innerHTML = "";
+    return;
+  }
+
+  aiFormatList.innerHTML = formatPairs
+    .map((pair) => {
+      const key = formatPairKey(pair);
+      const isActive = selectedFormatPair && formatPairKey(selectedFormatPair) === key;
+      return `
+        <article class="stack-item ${isActive ? "is-active" : ""}">
+          <button class="stack-action" type="button" data-ai-format-key="${key}" aria-pressed="${isActive}">
+            <span class="card-label eyebrow">${pair.channel}</span>
+            <span class="stack-title">${pair.format}</span>
+            <span class="stack-copy">${isActive ? "Selected for the next AI run." : "Click to target only this format."}</span>
+          </button>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function renderHints() {
@@ -2178,6 +2249,7 @@ function renderAll() {
   renderCalendar();
   renderChannels();
   renderHints();
+  renderAiFormats();
   buildPrompt();
   updateApplyState();
 }
@@ -2395,10 +2467,25 @@ aiTaskList.addEventListener("click", (event) => {
   }
 
   activeAiTaskId = trigger.dataset.aiTask;
-  buildPrompt();
   renderHints();
+  renderAiFormats();
+  buildPrompt();
   showSection("ai");
   setAiStatus(`${getActiveAiTask()?.title || "Prompt"} ready`);
+});
+
+aiFormatList?.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-ai-format-key]");
+
+  if (!trigger) {
+    return;
+  }
+
+  activeAiFormatKey = trigger.dataset.aiFormatKey;
+  renderAiFormats();
+  buildPrompt();
+  showSection("ai");
+  setAiStatus("Format target updated", "success");
 });
 
 workflowGuide.addEventListener("click", (event) => {

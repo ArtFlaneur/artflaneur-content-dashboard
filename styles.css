@@ -1168,6 +1168,10 @@ textarea {
   color: var(--accent);
 }
 
+#aiFormatPanel[hidden] {
+  display: none;
+}
+
 .history-block {
   display: grid;
   gap: 12px;
