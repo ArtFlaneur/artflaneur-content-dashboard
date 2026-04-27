@@ -430,6 +430,11 @@ textarea {
   cursor: pointer;
 }
 
+#aiFormatSelect[hidden],
+#aiFormatSep[hidden] {
+  display: none;
+}
+
 .ai-context-select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

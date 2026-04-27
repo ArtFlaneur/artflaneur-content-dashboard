@@ -367,6 +367,8 @@ const learningGrid = document.querySelector("#learningGrid");
 const aiTaskList = document.querySelector("#aiTaskList");
 const aiFormatPanel = document.querySelector("#aiFormatPanel");
 const aiFormatList = document.querySelector("#aiFormatList");
+const aiFormatSelect = document.querySelector("#aiFormatSelect");
+const aiFormatSep = document.querySelector("#aiFormatSep");
 const promptOutput = document.querySelector("#promptOutput");
 const aiContextTask = document.querySelector("#aiContextTask");
 const aiResponse = document.querySelector("#aiResponse");
@@ -2188,9 +2190,26 @@ function renderAiFormats() {
   const shouldShow = isFormatScopedAiTask(task?.id) && formatPairs.length > 0;
   aiFormatPanel.hidden = !shouldShow;
 
+  if (aiFormatSelect && aiFormatSep) {
+    aiFormatSelect.hidden = !shouldShow;
+    aiFormatSep.hidden = !shouldShow;
+  }
+
   if (!shouldShow) {
     aiFormatList.innerHTML = "";
+    if (aiFormatSelect) {
+      aiFormatSelect.innerHTML = "";
+    }
     return;
+  }
+
+  const selectedKey = selectedFormatPair ? formatPairKey(selectedFormatPair) : "";
+
+  if (aiFormatSelect) {
+    aiFormatSelect.innerHTML = formatPairs
+      .map((pair) => `<option value="${formatPairKey(pair)}">${pair.format} — ${pair.channel}</option>`)
+      .join("");
+    aiFormatSelect.value = selectedKey;
   }
 
   aiFormatList.innerHTML = formatPairs
@@ -2482,6 +2501,14 @@ aiFormatList?.addEventListener("click", (event) => {
   }
 
   activeAiFormatKey = trigger.dataset.aiFormatKey;
+  renderAiFormats();
+  buildPrompt();
+  showSection("ai");
+  setAiStatus("Format target updated", "success");
+});
+
+aiFormatSelect?.addEventListener("change", (event) => {
+  activeAiFormatKey = event.target.value;
   renderAiFormats();
   buildPrompt();
   showSection("ai");
