@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Art Flaneur Content Marketing Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">Art Flaneur</p>
+          <h1>Inbound Content HQ</h1>
+          <p class="sidebar-copy">
+            A working space for strategy, production, and publishing with HubSpot-style inbound logic.
+          </p>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Primary">
+          <button class="nav-link is-active" data-section="overview">
+            <span class="nav-label">Overview</span>
+          </button>
+          <button class="nav-link" data-section="personas">
+            <span class="nav-label">Personas</span>
+            <span class="nav-status" data-status-for="personas"></span>
+          </button>
+          <button class="nav-link" data-section="journey">
+            <span class="nav-label">Buyer's Journey</span>
+            <span class="nav-status" data-status-for="journey"></span>
+          </button>
+          <button class="nav-link" data-section="clusters">
+            <span class="nav-label">Topic Clusters</span>
+            <span class="nav-status" data-status-for="clusters"></span>
+          </button>
+          <button class="nav-link" data-section="pipeline">
+            <span class="nav-label">Content Pipeline</span>
+            <span class="nav-status" data-status-for="pipeline"></span>
+          </button>
+          <button class="nav-link" data-section="calendar">
+            <span class="nav-label">Publishing Calendar</span>
+            <span class="nav-status" data-status-for="calendar"></span>
+          </button>
+          <button class="nav-link" data-section="channels">
+            <span class="nav-label">Channels</span>
+            <span class="nav-status" data-status-for="channels"></span>
+          </button>
+          <button class="nav-link" data-section="ai">
+            <span class="nav-label">AI Studio</span>
+            <span class="nav-status" data-status-for="ai"></span>
+          </button>
+          <button class="nav-link" data-section="learn">
+            <span class="nav-label">Playbook</span>
+            <span class="nav-status" data-status-for="learn"></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-panel">
+          <p class="panel-label">This week</p>
+          <strong id="weekly-focus">Map content gaps for awareness stage</strong>
+          <p class="panel-copy">
+            Start with educational topics before decision-stage offers. That keeps the inbound funnel balanced.
+          </p>
+        </div>
+      </aside>
+
+      <main class="content-area">
+        <header class="topbar">
+          <div class="topbar-copy">
+            <p class="eyebrow">Content Marketing Dashboard</p>
+            <h2>Plan content around audience intent, not random post ideas.</h2>
+            <p class="topbar-copy-note">
+              Start with one audience, one stage, and one weak topic area. The dashboard is now structured around that operating flow.
+            </p>
+          </div>
+          <div class="command-panel">
+            <div class="command-panel-head">
+              <div>
+                <p class="eyebrow">Control Panel</p>
+                <h3>Set your working focus first</h3>
+              </div>
+              <p class="command-panel-copy">Choose a persona and a buyer stage before editing clusters or running AI.</p>
+            </div>
+            <div class="topbar-actions">
+              <label class="filter-card">
+                <span>Primary persona</span>
+                <select id="personaFilter" aria-label="Filter by persona"></select>
+              </label>
+              <label class="filter-card">
+                <span>Journey stage</span>
+                <select id="stageFilter" aria-label="Filter by buyer stage"></select>
+              </label>
+              <button id="aiQuickAction" class="cta-button" type="button">Generate next move</button>
+            </div>
+          </div>
+        </header>
+
+        <section id="overview" class="panel hero-panel is-visible">
+          <div class="hero-copy">
+            <p class="eyebrow">Inbound methodology</p>
+            <div class="heading-with-help">
+              <h3>Turn audience research into topic clusters, briefs, and publishable assets.</h3>
+              <div class="help-popover">
+                <button class="help-trigger" type="button" aria-label="Overview workflow help">?</button>
+                <div class="help-tooltip help-tooltip-wide" role="tooltip">
+                  <p class="help-title">What to do first</p>
+                  <ol class="help-list">
+                    <li>Pick one persona and one buyer stage in the control panel above.</li>
+                    <li>Use AI Studio to generate the first topic cluster and subtopics from that audience.</li>
+                    <li>Only then move the strongest ideas into briefs, pipeline, and publishing.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            <p>
+              This dashboard follows a simple flow: define personas, map their journey, group strategic topics,
+              move content through production, and publish in English with guidance at each step.
+            </p>
+            <div class="launchpad-block">
+              <div class="launchpad-head">
+                <div>
+                  <p class="eyebrow">Start Here</p>
+                  <h4 class="subheading">Use the dashboard in this order</h4>
+                </div>
+                <p class="section-copy">Each card moves you to the next decision instead of leaving you in a flat control panel.</p>
+              </div>
+              <div id="workflowGuide" class="launchpad-grid"></div>
+            </div>
+          </div>
+          <div class="overview-sidebar">
+            <div class="hero-grid" id="overviewMetrics"></div>
+          </div>
+        </section>
+
+        <section id="personas" class="panel section-panel">
+          <div class="section-layout section-layout-single">
+            <div class="section-main">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Audience Foundations</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h3>Personas</h3>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Persona section help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">How to use this section</p>
+                        <ul class="help-list">
+                          <li>Name the persona by role or intent, not by age bracket.</li>
+                          <li>Write pains in the user's language so AI prompts stay specific.</li>
+                          <li>Only add channels you will actually distribute through.</li>
+                          <li>If you can describe friction, desired outcome, and reachable channels, the profile is usable.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="section-copy">
+                  Personas are not demographics only. Track pains, goals, objections, and the content formats each
+                  segment responds to.
+                </p>
+              </div>
+              <div class="input-panel">
+                <div>
+                  <p class="eyebrow">Add Persona</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h4 class="subheading">Capture a usable audience profile</h4>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Persona form help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">What to put here</p>
+                        <ul class="help-list">
+                          <li>Role: the commercial or decision context of the persona.</li>
+                          <li>Pains: concrete blockers in the persona's own language.</li>
+                          <li>Goals: business or user outcomes they are trying to achieve.</li>
+                          <li>Channels: only surfaces you can realistically publish through.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <form id="personaForm" class="form-grid">
+                  <input type="text" name="name" placeholder="Persona name" required />
+                  <input type="text" name="role" placeholder="Role or short description" required />
+                  <input type="text" name="pains" placeholder="Pains, comma separated" required />
+                  <input type="text" name="goals" placeholder="Goals, comma separated" required />
+                  <input type="text" name="channels" placeholder="Channels, comma separated" required />
+                  <button class="cta-button" type="submit">Save persona</button>
+                </form>
+              </div>
+              <div id="personaGrid" class="card-grid"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="journey" class="panel section-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Intent Mapping</p>
+              <h3>Buyer's Journey Coverage</h3>
+            </div>
+            <p class="section-copy">
+              HubSpot logic: build trust in awareness, compare options in consideration, and make action easy in
+              decision.
+            </p>
+          </div>
+          <div id="journeyGrid" class="journey-grid"></div>
+        </section>
+
+        <section id="clusters" class="panel section-panel">
+          <div class="section-layout section-layout-single">
+            <div class="section-main">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Topic Strategy</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h3>Clusters and Subtopics</h3>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Cluster section help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">How to use this section</p>
+                        <ul class="help-list">
+                          <li>Let AI draft the first cluster from persona pains, goals, and channels.</li>
+                          <li>Keep manual edits for corrections, not for building the whole map from scratch.</li>
+                          <li>Subtopics should span awareness, comparison, and decision friction.</li>
+                          <li>A strong cluster creates one pillar idea and a clear CTA path into production.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="section-copy">
+                  Start from personas, then let AI propose the first cluster map. Manual cluster editing stays
+                  available, but it is now a fallback instead of the starting point.
+                </p>
+              </div>
+              <div class="input-panel">
+                <div>
+                  <p class="eyebrow">Manual Override</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h4 class="subheading">Add or adjust a cluster by hand</h4>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Cluster form help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">When to use manual override</p>
+                        <ul class="help-list">
+                          <li>Use it to refine an AI draft or add a missing strategic cluster.</li>
+                          <li>Coverage score is directional, not precise reporting.</li>
+                          <li>Keep the title tied to a user need, not an internal taxonomy label.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <form id="clusterForm" class="form-grid">
+                  <input type="text" name="title" placeholder="Cluster title" required />
+                  <select id="clusterPersona" name="persona" aria-label="Cluster persona"></select>
+                  <select name="intent" aria-label="Cluster stage">
+                    <option value="Awareness">Awareness</option>
+                    <option value="Consideration">Consideration</option>
+                    <option value="Decision">Decision</option>
+                  </select>
+                  <input type="text" name="score" placeholder="Coverage score, for example 55%" required />
+                  <input type="text" name="summary" placeholder="Why this cluster matters" required />
+                  <input type="text" name="subtopics" placeholder="Subtopics, comma separated" required />
+                  <button class="cta-button" type="submit">Save cluster</button>
+                </form>
+              </div>
+              <div id="clusterGrid" class="cluster-grid"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="pipeline" class="panel section-panel">
+          <div class="section-layout section-layout-single">
+            <div class="section-main">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Production Flow</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h3>Content Pipeline</h3>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Pipeline section help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">How to use this section</p>
+                        <ul class="help-list">
+                          <li>Only create a content item after it belongs to one persona and one stage.</li>
+                          <li>Use Brief when the idea is approved, not while it is still fuzzy.</li>
+                          <li>Review should hold nearly publishable work, not backlog.</li>
+                          <li>If a title has no clear cluster and CTA, it is still an idea.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p class="section-copy">
+                  Track each asset from idea to publication. This section should fill up after AI has proposed clusters and briefs.
+                </p>
+              </div>
+              <div class="input-panel">
+                <div>
+                  <p class="eyebrow">Manual Entry</p>
+                  <div class="heading-with-help heading-with-help-inline">
+                    <h4 class="subheading">Add a content item without AI</h4>
+                    <div class="help-popover">
+                      <button class="help-trigger" type="button" aria-label="Content form help">?</button>
+                      <div class="help-tooltip" role="tooltip">
+                        <p class="help-title">When to use manual entry</p>
+                        <ul class="help-list">
+                          <li>Use it when the idea already exists outside AI Studio.</li>
+                          <li>Keep status honest: do not jump to Draft if the brief does not exist.</li>
+                          <li>Choose the persona and stage first so the asset stays attributable.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <form id="contentForm" class="form-grid">
+                  <input type="text" name="title" placeholder="Working title" required />
+                  <select name="persona" id="contentPersona" aria-label="Content persona"></select>
+                  <select name="stage" aria-label="Content stage">
+                    <option value="Awareness">Awareness</option>
+                    <option value="Consideration">Consideration</option>
+                    <option value="Decision">Decision</option>
+                  </select>
+                  <select name="format" aria-label="Content format">
+                    <option value="">Format — optional</option>
+                    <option value="Article">Article</option>
+                    <option value="Short Post">Short Post</option>
+                    <option value="Long Video">Long Video</option>
+                    <option value="Short Video / Reel">Short Video / Reel</option>
+                    <option value="Newsletter">Newsletter</option>
+                    <option value="Email">Email</option>
+                    <option value="Case Study">Case Study</option>
+                    <option value="Guide / PDF">Guide / PDF</option>
+                  </select>
+                  <select name="channel" aria-label="Primary channel">
+                    <option value="">Channel — optional</option>
+                    <option value="Blog">Blog</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="Newsletter">Newsletter</option>
+                    <option value="YouTube">YouTube</option>
+                  </select>
+                  <select name="status" aria-label="Content status">
+                    <option value="Idea">Idea</option>
+                    <option value="Brief">Brief</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Review">Review</option>
+                    <option value="Published">Published</option>
+                  </select>
+                  <button class="cta-button" type="submit">Save content item</button>
+                </form>
+              </div>
+              <div id="pipelineBoard" class="pipeline-board"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="calendar" class="panel section-panel two-column">
+          <div>
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Publishing Rhythm</p>
+                <h3>Upcoming Publications</h3>
+              </div>
+            </div>
+            <div class="input-panel">
+              <div>
+                <p class="eyebrow">Schedule an entry</p>
+                <h4 class="subheading">Add a publication to the calendar</h4>
+              </div>
+              <form id="calendarForm" class="form-grid">
+                <input type="text" name="title" placeholder="Publication title" required />
+                <input type="date" name="date" required />
+                <select name="channel" aria-label="Publishing channel">
+                  <option value="Blog">Blog</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="Newsletter">Newsletter</option>
+                  <option value="YouTube">YouTube</option>
+                </select>
+                <input type="text" name="note" placeholder="Publishing note (optional)" />
+                <button class="cta-button" type="submit">Add to calendar</button>
+              </form>
+            </div>
+            <div id="calendarList" class="calendar-list"></div>
+          </div>
+          <div class="mini-panel">
+            <p class="eyebrow">Progress Lens</p>
+            <h3>Coverage signals</h3>
+            <ul id="coverageList" class="signal-list"></ul>
+          </div>
+        </section>
+
+        <section id="channels" class="panel section-panel">
+          <div class="section-layout section-layout-single">
+            <div class="section-main">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Distribution Layer</p>
+                  <h3>Channel Performance</h3>
+                </div>
+                <p class="section-copy">
+                  Track follower growth across your active channels. Log a weekly snapshot to see momentum over time.
+                  YouTube subscriber count can be fetched automatically with a Google API key.
+                </p>
+              </div>
+              <div class="input-panel">
+                <div>
+                  <p class="eyebrow">Add channel</p>
+                  <h4 class="subheading">Register a distribution channel</h4>
+                </div>
+                <form id="channelForm" class="form-grid">
+                  <select name="platform" id="channelPlatform" aria-label="Platform">
+                    <option value="Instagram">Instagram</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="Newsletter">Newsletter</option>
+                    <option value="Blog">Blog</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="X / Twitter">X / Twitter</option>
+                  </select>
+                  <input type="text" name="handle" placeholder="Handle or channel name, e.g. @artflaneur" required />
+                  <input type="url" name="url" placeholder="Profile URL (optional)" />
+                  <input type="text" name="apiKey" placeholder="YouTube API key (optional, auto-fetch only)" />
+                  <input type="text" name="channelId" placeholder="YouTube channel ID (optional, e.g. UCxxxxxx)" />
+                  <button class="cta-button" type="submit">Add channel</button>
+                </form>
+              </div>
+              <div id="channelGrid" class="channel-grid"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="ai" class="panel section-panel two-column">
+          <div>
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">AI Co-Pilot</p>
+                <div class="heading-with-help heading-with-help-inline">
+                  <h3>Prompt Builder</h3>
+                  <div class="help-popover">
+                    <button class="help-trigger" type="button" aria-label="AI workflow help">?</button>
+                    <div class="help-tooltip" role="tooltip">
+                      <p class="help-title">How to use AI</p>
+                      <ul class="help-list">
+                        <li>First set persona and stage in the control panel.</li>
+                        <li>Then choose one AI task based on the decision you need next.</li>
+                        <li>Apply the result only if it improves a real cluster, persona, or brief.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="section-copy">
+                Use the model to refine personas, expand topic clusters, and draft content briefs in English.
+              </p>
+            </div>
+            <div class="prompt-box">
+              <label for="promptOutput">Recommended prompt</label>
+              <textarea id="promptOutput" rows="10" readonly></textarea>
+              <div class="prompt-actions">
+                <button class="ghost-button" id="refreshPrompt" type="button">Refresh prompt</button>
+                <button class="ghost-button" id="copyPrompt" type="button">Copy prompt</button>
+                <button class="cta-button" id="runAi" type="button">Run with Azure OpenAI</button>
+              </div>
+            </div>
+            <div class="response-box">
+              <div class="response-header">
+                <label for="aiResponse">Model response</label>
+                <span id="aiStatus" class="response-status">Ready</span>
+              </div>
+              <textarea id="aiResponse" rows="14" readonly placeholder="The model output will appear here."></textarea>
+              <div class="response-actions">
+                <button class="ghost-button" id="applyAi" type="button" disabled>Apply to dashboard</button>
+                <p id="applyAiNote" class="helper-copy">
+                  The latest structured AI result can update personas, clusters, or content items.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mini-panel section-rail-panel">
+            <p class="eyebrow">Suggested AI tasks</p>
+            <p class="stack-copy">
+              Pick one task based on what is blocked right now: audience clarity, topic gaps, or the next brief.
+            </p>
+            <div id="aiTaskList" class="stack-list"></div>
+            <div class="history-block">
+              <p class="eyebrow">Recent AI runs</p>
+              <div id="aiHistoryList" class="history-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="learn" class="panel section-panel two-column">
+          <div>
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Reference Layer</p>
+                <h3>Playbook</h3>
+              </div>
+              <p class="section-copy">
+                These are reference principles. The operational hints now sit in the margins of Personas, Clusters,
+                Pipeline, and AI Studio behind the inline question-mark help where you actually make decisions.
+              </p>
+            </div>
+            <div id="learningGrid" class="card-grid"></div>
+          </div>
+          <div class="mini-panel roadmap-panel">
+            <p class="eyebrow">What's next</p>
+            <h3>Remaining priorities</h3>
+            <ol class="roadmap-list">
+              <li>Multi-user support: assign content items to team members.</li>
+              <li>Export briefs and drafts as downloadable files.</li>
+              <li>Connect to a CMS or publishing platform for one-click publish.</li>
+              <li>Automated coverage scoring based on published content.</li>
+            </ol>
+            <p class="eyebrow" style="margin-top:20px">Completed</p>
+            <ul class="roadmap-list roadmap-done">
+              <li>Editable personas, clusters, pipeline items, calendar.</li>
+              <li>Brief editor with format, channel, and publication date.</li>
+              <li>AI-generated briefs and full drafts stored in pipeline.</li>
+              <li>Publishing calendar with schedule-from-brief workflow.</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="metricTemplate">
+      <article class="metric-card">
+        <p class="metric-label"></p>
+        <strong class="metric-value"></strong>
+        <p class="metric-detail"></p>
+      </article>
+    </template>
+
+    <!-- Brief editor modal -->
+    <div id="briefModal" class="modal-overlay" aria-modal="true" role="dialog" hidden>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="brief-title-wrap">
+            <p class="eyebrow">Content Item</p>
+            <input class="brief-title-input" id="briefModalTitle" type="text" placeholder="Working title" />
+          </div>
+          <button class="ghost-button modal-close-btn" id="closeBriefModal" type="button">Close ×</button>
+        </div>
+        <div class="modal-body">
+          <div class="brief-meta-row brief-meta-row-top">
+            <label class="brief-meta-field">
+              <span class="field-label">Persona</span>
+              <select id="briefPersona"></select>
+            </label>
+            <label class="brief-meta-field">
+              <span class="field-label">Stage</span>
+              <select id="briefStage">
+                <option value="Awareness">Awareness</option>
+                <option value="Consideration">Consideration</option>
+                <option value="Decision">Decision</option>
+              </select>
+            </label>
+            <label class="brief-meta-field">
+              <span class="field-label">Status</span>
+              <select id="briefStatus">
+                <option value="Idea">Idea</option>
+                <option value="Brief">Brief</option>
+                <option value="Draft">Draft</option>
+                <option value="Review">Review</option>
+                <option value="Published">Published</option>
+              </select>
+            </label>
+          </div>
+          <div class="brief-meta-row">
+            <label class="brief-meta-field">
+              <span class="field-label">Format</span>
+              <select id="briefFormat">
+                <option value="">— choose format —</option>
+                <option value="Article">Article</option>
+                <option value="Short Post">Short Post</option>
+                <option value="Long Video">Long Video</option>
+                <option value="Short Video / Reel">Short Video / Reel</option>
+                <option value="Newsletter">Newsletter</option>
+                <option value="Email">Email</option>
+                <option value="Case Study">Case Study</option>
+                <option value="Guide / PDF">Guide / PDF</option>
+              </select>
+            </label>
+            <label class="brief-meta-field">
+              <span class="field-label">Channel</span>
+              <select id="briefChannel">
+                <option value="">— choose channel —</option>
+                <option value="Blog">Blog</option>
+                <option value="Instagram">Instagram</option>
+                <option value="LinkedIn">LinkedIn</option>
+                <option value="TikTok">TikTok</option>
+                <option value="Newsletter">Newsletter</option>
+                <option value="YouTube">YouTube</option>
+              </select>
+            </label>
+            <label class="brief-meta-field">
+              <span class="field-label">Publish date</span>
+              <input type="date" id="briefPublishDate" />
+            </label>
+          </div>
+          <label class="brief-content-label">
+            <span class="field-label">Brief / Draft content</span>
+            <textarea id="briefContentEditor" rows="20" placeholder="AI-generated brief will appear here after Apply. Edit, expand, or write from scratch."></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="cta-button" id="saveBrief" type="button">Save changes</button>
+          <button class="ghost-button" id="advanceBrief" type="button">Advance stage</button>
+          <button class="ghost-button" id="scheduleBrief" type="button">Schedule for publishing</button>
+          <button class="ghost-button ghost-button-danger" id="deleteBrief" type="button">Delete item</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit cluster modal -->
+    <div id="editClusterModal" class="modal-overlay" aria-modal="true" role="dialog" hidden>
+      <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Edit Cluster</p>
+            <h3 id="editClusterModalTitle"></h3>
+          </div>
+          <button class="ghost-button modal-close-btn" id="closeEditClusterModal" type="button">Close ×</button>
+        </div>
+        <div class="modal-body">
+          <form id="editClusterForm" class="form-grid">
+            <input type="hidden" id="editClusterKey" />
+            <input type="text" id="editClusterTitle" name="title" placeholder="Cluster title" required />
+            <select id="editClusterPersona" name="persona" aria-label="Cluster persona"></select>
+            <select name="intent" id="editClusterIntent" aria-label="Cluster stage">
+              <option value="Awareness">Awareness</option>
+              <option value="Consideration">Consideration</option>
+              <option value="Decision">Decision</option>
+            </select>
+            <input type="text" id="editClusterScore" name="score" placeholder="Coverage score, e.g. 8/10" required />
+            <input type="text" id="editClusterSummary" name="summary" placeholder="Why this cluster matters" required />
+            <input type="text" id="editClusterSubtopics" name="subtopics" placeholder="Subtopics, comma separated" required />
+            <button class="cta-button" type="submit">Save cluster</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit persona modal -->
+    <div id="editPersonaModal" class="modal-overlay" aria-modal="true" role="dialog" hidden>
+      <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Edit Persona</p>
+            <h3 id="editPersonaName"></h3>
+          </div>
+          <button class="ghost-button modal-close-btn" id="closeEditPersonaModal" type="button">Close ×</button>
+        </div>
+        <div class="modal-body">
+          <form id="editPersonaForm" class="form-grid">
+            <input type="hidden" id="editPersonaId" name="id" />
+            <input type="text" id="editPersonaNameInput" name="name" placeholder="Persona name" required />
+            <input type="text" id="editPersonaRole" name="role" placeholder="Role or short description" required />
+            <input type="text" id="editPersonaPains" name="pains" placeholder="Pains, comma separated" required />
+            <input type="text" id="editPersonaGoals" name="goals" placeholder="Goals, comma separated" required />
+            <input type="text" id="editPersonaChannels" name="channels" placeholder="Channels, comma separated" required />
+            <button class="cta-button" type="submit">Save changes</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
