@@ -23,19 +23,14 @@ const DEMO_CALENDAR_TITLES = [
 const STATUS_ORDER = ["Idea", "Brief", "Draft", "Review", "Published"];
 
 // Maps each distribution channel to the content formats that work best on it
+// Canonical channel keys — AI must use these exact strings when writing persona channels
 const CHANNEL_FORMAT_MAP = {
-  "Instagram":              ["Instagram carousel (10 slides)", "Instagram caption + visual hook", "Instagram Reel script (45–60 sec)"],
-  "TikTok":                 ["TikTok / Reel script (60–90 sec)", "short-form hook + 3 punchy points"],
-  "LinkedIn":               ["LinkedIn long-form article (800–1200 words)", "LinkedIn thought-leadership post (300–500 words)"],
-  "email outreach":         ["nurture email (250–400 words)", "3-part email sequence"],
-  "industry newsletters":   ["newsletter contributed article (500–800 words)", "newsletter short brief (150–250 words)"],
-  "cultural conferences":   ["conference talk outline or abstract", "one-page speaker brief"],
-  "partner referrals":      ["partner one-pager", "co-branded summary brief"],
-  "art fairs":              ["art fair one-pager", "print-ready exhibition note"],
-  "gallery networks":       ["gallery newsletter blurb (200–350 words)", "exhibition announcement email"],
-  "travel blogs":           ["travel narrative article (1000–1500 words)", "city guide entry (400–600 words)"],
-  "app stores":             ["in-app cultural guide entry (150–300 words)", "app feature description"],
-  "city guides":            ["city guide entry (400–600 words)", "curated top-picks list"]
+  "Instagram":         ["Instagram carousel (10 slides)", "Instagram caption + visual hook", "Instagram Reel script (45–60 sec)"],
+  "LinkedIn":          ["LinkedIn long-form article (800–1200 words)", "LinkedIn thought-leadership post (300–500 words)"],
+  "YouTube":           ["YouTube video script (8–15 min)", "YouTube Shorts script (60–90 sec)"],
+  "email newsletter":  ["nurture email (250–400 words)", "3-part email sequence"],
+  "website article":   ["long-form blog article (1000–1500 words)", "pillar page section (400–600 words)"],
+  "PDF / slides":      ["downloadable guide or e-book (1500–3000 words)", "slide deck (10–15 slides)"]
 };
 
 // For each stage: the tone/intent guidance the AI should apply to every format
@@ -80,7 +75,7 @@ const initialData = {
         "maximize sponsor satisfaction",
         "create a smooth visitor experience"
       ],
-      channels: ["LinkedIn", "email outreach", "industry newsletters", "cultural conferences", "partner referrals"]
+      channels: ["LinkedIn", "email newsletter", "website article", "PDF / slides"]
     },
     {
       id: "gallery-director",
@@ -100,7 +95,7 @@ const initialData = {
         "convert interest into sales",
         "build a stronger program"
       ],
-      channels: ["Instagram", "email outreach", "LinkedIn", "art fairs", "gallery networks"]
+      channels: ["Instagram", "LinkedIn", "email newsletter", "PDF / slides"]
     },
     {
       id: "cultural-tourist",
@@ -120,7 +115,7 @@ const initialData = {
         "connect with local art scenes",
         "enrich travel through culture"
       ],
-      channels: ["Instagram", "TikTok", "app stores", "travel blogs", "city guides"]
+      channels: ["Instagram", "YouTube", "website article"]
     }
   ],
   journey: [
@@ -1931,10 +1926,12 @@ function buildPrompt() {
       "2. Five pains or anxieties in plain language.",
       "3. Five desired outcomes.",
       "4. Five objections that block action.",
-      "5. Four trusted channels, sources, or formats.",
+      "5. Four trusted channels this persona actually uses (choose only from this exact list, use exact spelling):",
+      "   Instagram | LinkedIn | YouTube | email newsletter | website article | PDF / slides",
       "6. Three messaging hooks Art Flaneur can use in content.",
       "7. Three content angles, one per buyer's journey stage.",
       "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
+      "The channels array must contain only values from: Instagram, LinkedIn, YouTube, email newsletter, website article, PDF / slides — no other strings.",
       `Use this exact shape: {"type":"persona-depth","persona":{"name":"${persona}","role":"...","pains":["..."],"goals":["..."],"channels":["..."]}}`
     ];
     weeklyFocus.textContent = `Sharpen the voice, objections, and message angles for ${persona}.`;
