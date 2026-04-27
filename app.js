@@ -2052,6 +2052,10 @@ function buildPrompt() {
   }
 
   if (task?.id === "content-brief") {
+    const jsonItems = formatPairs.map((p) =>
+      `{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief","format":"${p.format}","channel":"${p.channel}"}`
+    ).join(",\n    ");
+
     const numberedFormats = formatPairs.map((p, i) => `  ${i + 1}. ${p.format} — ${p.channel}`).join("\n");
 
     promptLines = [
