@@ -1421,11 +1421,15 @@ function applyAiRun() {
       const sections = rawSections.length >= items.length ? rawSections : null;
 
       items.forEach((item, index) => {
-        let sectionText = sections ? sections[index] : null;
-        if (!sectionText && item.format) {
-          // Fallback: find any section containing the format name
+        let sectionText = null;
+        if (sections && item.format) {
+          // Primary: match by format name — AI may write sections in any order
           const needle = item.format.split("(")[0].trim().toLowerCase();
-          sectionText = (sections || []).find((s) => s.toLowerCase().includes(needle));
+          sectionText = sections.find((s) => s.toLowerCase().includes(needle)) || null;
+        }
+        if (!sectionText && sections) {
+          // Fallback: index-based assignment
+          sectionText = sections[index] || null;
         }
         sectionText = sectionText || fullText;
         const enrichedItem = { ...item, briefContent: sectionText.trim() };
