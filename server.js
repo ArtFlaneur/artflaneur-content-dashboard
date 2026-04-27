@@ -99,7 +99,7 @@ function getAzureConfig() {
   const endpoint = normalizeEndpoint(process.env.AZURE_OPENAI_ENDPOINT);
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const model = process.env.AZURE_OPENAI_MODEL;
-  const apiVersion = process.env.AZURE_OPENAI_VERSION || "2024-12-01-preview";
+  const apiVersion = process.env.AZURE_OPENAI_VERSION || "2025-03-01-preview";
 
   if (!endpoint || !apiKey || !model) {
     return null;
@@ -133,7 +133,7 @@ async function callAzureWithFallback(prompt) {
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
-        max_completion_tokens: 2200
+        max_completion_tokens: 16000
       }
     },
     {
@@ -151,7 +151,7 @@ async function callAzureWithFallback(prompt) {
             content: [{ type: "input_text", text: prompt }]
           }
         ],
-        max_output_tokens: 2200,
+        max_output_tokens: 16000,
         temperature: 0.7
       }
     }

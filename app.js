@@ -1967,14 +1967,14 @@ function buildPrompt() {
       hasCluster
         ? `Use this priority cluster as context: ${clusterTitle}.`
         : "There are no saved clusters yet, so generate the first strategic cluster from the persona details in the dashboard.",
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in the real values as you write: <app-data>${JSON.stringify({type:"strategy-plan",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"},contentItem:{title:"...",persona,stage,status:"Brief"}})}</app-data>`,
+      "Then write the full plan below.",
       "Return:",
       "1. Persona insight summary with pains, desired outcomes, and objections.",
       "2. One core topic cluster and six supporting subtopics.",
       "3. Three article ideas ranked by inbound impact — each with a specific format and channel from the list above.",
       "4. One content brief with title, promise, outline, CTA, and distribution notes (include the format and channel).",
-      "5. A short explanation of why this supports the inbound methodology.",
-      "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"strategy-plan","cluster":{"title":"${clusterTitle}","persona":"${persona}","summary":"...","intent":"${stage}","subtopics":["..."],"score":"AI draft"},"contentItem":{"title":"...","persona":"${persona}","stage":"${stage}","status":"Brief"}}`
+      "5. A short explanation of why this supports the inbound methodology."
     ].filter(Boolean);
     weeklyFocus.textContent = `Develop ${stage.toLowerCase()} opportunities for ${persona}.`;
     runAiButton.textContent = "Run strategic plan";
@@ -1986,6 +1986,8 @@ function buildPrompt() {
       "Expand one audience persona in English so it becomes usable for content planning.",
       `Focus on persona: ${persona}.`,
       `Reflect the current buying stage context: ${stage}.`,
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"persona-depth",persona:{name:persona,role:"...",pains:["complete sentence"],goals:["complete sentence"],channels:["ExactChannelName"]}})}</app-data>`,
+      "Then write the full expansion below.",
       "Return:",
       "1. A concise persona summary in 3 sentences.",
       "2. Five pains or anxieties in plain language.",
@@ -2000,9 +2002,7 @@ function buildPrompt() {
       "  - Never split a sentence across two array items. If a thought has a comma in the middle, keep it in one string.",
       "  - No item may start with 'and', 'but', 'or', 'wayfinding', or any fragment.",
       "  - Each pain and goal must make sense on its own without reading other items.",
-      "  - channels array: use ONLY the exact strings listed above — no descriptions, no paraphrasing.",
-      "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"persona-depth","persona":{"name":"${persona}","role":"...","pains":["complete sentence","complete sentence","complete sentence","complete sentence","complete sentence"],"goals":["complete sentence","complete sentence","complete sentence","complete sentence","complete sentence"],"channels":["ExactChannelName","ExactChannelName"]}}`
+      "  - channels array: use ONLY the exact strings listed above — no descriptions, no paraphrasing."
     ];
     weeklyFocus.textContent = `Sharpen the voice, objections, and message angles for ${persona}.`;
     runAiButton.textContent = "Run persona expansion";
@@ -2018,14 +2018,14 @@ function buildPrompt() {
         ? `Current weakest cluster: ${clusterTitle}.`
         : `No saved cluster exists yet. Propose the first core cluster for ${persona} at the ${stage} stage.`,
       `Cluster summary: ${clusterSummary}`,
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"cluster-gaps",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"}})}</app-data>`,
+      "Then write the full analysis below.",
       "Return:",
       "1. A short diagnosis of the current gap.",
       "2. One improved core cluster with a clear promise.",
       "3. Eight supporting subtopics with clear angles.",
       "4. Two conversion assets or lead magnets.",
-      "5. Internal linking notes showing how awareness, consideration, and decision content should connect.",
-      "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"cluster-gaps","cluster":{"title":"${clusterTitle}","persona":"${persona}","summary":"...","intent":"${stage}","subtopics":["..."],"score":"AI draft"}}`
+      "5. Internal linking notes showing how awareness, consideration, and decision content should connect."
     ];
     weeklyFocus.textContent = `Close the topic gap around ${clusterTitle} for ${stage.toLowerCase()} intent.`;
     runAiButton.textContent = "Run cluster analysis";
@@ -2047,6 +2047,9 @@ function buildPrompt() {
         ? `Persona's channels and all applicable formats:\n${formatsText}`
         : "No channels specified for this persona.",
       `Stage tone for every brief: ${stageGuidance}`,
+      `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it even if the response is long:`,
+      `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
+      "After the JSON line, write the briefs.",
       "For EACH format in the list above, write a separate numbered brief that includes:",
       "  1. Format name and distribution channel",
       "  2. Working title written specifically for that format",
@@ -2054,9 +2057,7 @@ function buildPrompt() {
       "  4. Structure / outline adapted to that format's rules",
       "     (carousel = slide-by-slide; article = section headings; email = subject + body sections; script = timed beats; one-pager = key points)",
       "  5. CTA appropriate to the stage and channel",
-      "  6. Target length or duration",
-      "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}`
+      "  6. Target length or duration"
     ].filter(Boolean);
     weeklyFocus.textContent = `Draft ${stage.toLowerCase()} briefs for all ${persona} channels.`;
     runAiButton.textContent = "Run content briefs";
@@ -2086,6 +2087,9 @@ function buildPrompt() {
         ? `Persona's channels and all applicable formats:\n${formatsText}`
         : "No channels specified for this persona.",
       `Stage tone for every draft: ${stageGuidance}`,
+      `IMPORTANT: Start your response with ONLY this JSON line (fill in real titles), wrapped in <app-data></app-data> — do NOT omit it:`,
+      `<app-data>{"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}</app-data>`,
+      "After the JSON line, write the drafts.",
       "For EACH format in the list above, write a separate numbered draft. Apply the correct structural rules per format:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
@@ -2096,9 +2100,7 @@ function buildPrompt() {
       "  - Newsletter article: headline, subheadline, 500–800 words in 3–4 paragraphs, takeaway or CTA.",
       "  - One-pager / speaker brief: headline, one-paragraph summary, 3 key points with brief elaboration, next-step CTA.",
       "  - Travel narrative / blog article: engaging opening, 4–6 sections, 1000–1500 words, practical CTA.",
-      "  - All formats: adapt vocabulary and references to the persona's world; every section must address a specific pain or goal.",
-      "At the end, return one compact JSON object wrapped in <app-data></app-data> with no markdown fence.",
-      `Use this exact shape: {"type":"content-brief","contentItems":[\n    ${jsonItems}\n  ]}`
+      "  - All formats: adapt vocabulary and references to the persona's world; every section must address a specific pain or goal."
     ].filter(Boolean);
 
     weeklyFocus.textContent = `Write ${stage.toLowerCase()} drafts for all ${persona} formats.`;
