@@ -1415,25 +1415,31 @@ function applyAiRun() {
     if (items.length) {
       const fullText = latestAiRun?.displayText || "";
 
-      // Find numbered section boundaries. Handles: "1) ", "1. ", "**1)**", "**1. ", "### 1."
-      const boundaryMatches = [...fullText.matchAll(/^\s*(?:\*{1,2}|#{1,3}\s*)?\d+[).]\s/gm)];
-      const starts = boundaryMatches.map((m) => m.index);
-
-      // Build ordered sections from boundary positions
-      const sections = starts.map((start, i) =>
-        fullText.slice(start, starts[i + 1] ?? fullText.length).trim()
-      );
+      // Find each top-level section by searching for its EXACT sequential number (1, 2, 3…).
+      // This avoids matching sub-numbered items inside a section (e.g. "1. Format name",
+      // "2. Working title" etc. that appear as structural points inside each brief).
+      const sections = [];
+      for (let n = 1; n <= items.length; n++) {
+        const startRe = new RegExp(`^(?:\\*{1,2}|#{1,3} *)?${n}[).] `, "m");
+        const startMatch = startRe.exec(fullText);
+        if (!startMatch) { sections.push(null); continue; }
+        let endPos = fullText.length;
+        if (n < items.length) {
+          const nextRe = new RegExp(`^(?:\\*{1,2}|#{1,3} *)?${n + 1}[).] `, "m");
+          // Search for next section marker AFTER the current one starts
+          const searchFrom = startMatch.index + startMatch[0].length;
+          const nextMatch = nextRe.exec(fullText.slice(searchFrom));
+          if (nextMatch) endPos = searchFrom + nextMatch.index;
+        }
+        sections.push(fullText.slice(startMatch.index, endPos).trim());
+      }
 
       items.forEach((item, index) => {
-        let sectionText;
-        if (sections.length >= items.length) {
-          // Primary: index-based (order guaranteed to match)
-          sectionText = sections[index];
-        }
+        let sectionText = sections[index] || null;
         if (!sectionText && item.format) {
-          // Fallback: search for section containing the format name (before any parenthesis)
+          // Fallback: find any section containing the format name (before any parenthesis)
           const needle = item.format.split("(")[0].trim().toLowerCase();
-          sectionText = sections.find((s) => s.toLowerCase().includes(needle));
+          sectionText = sections.find((s) => s && s.toLowerCase().includes(needle)) || null;
         }
         sectionText = sectionText || fullText;
         const enrichedItem = { ...item, briefContent: sectionText.trim() };
