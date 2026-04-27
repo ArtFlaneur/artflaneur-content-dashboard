@@ -1428,6 +1428,21 @@ textarea {
   min-width: 0;
 }
 
+.brief-format-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(199,101,58,0.08);
+  border: 1px solid rgba(199,101,58,0.25);
+  border-radius: 6px;
+  padding: 3px 10px;
+  margin-bottom: 6px;
+  width: fit-content;
+}
+
 .brief-title-input {
   width: 100%;
   padding: 6px 0;

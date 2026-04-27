@@ -527,6 +527,7 @@
         <div class="modal-header">
           <div class="brief-title-wrap">
             <p class="eyebrow">Content Item</p>
+            <div id="briefFormatBadge" class="brief-format-badge" hidden></div>
             <input class="brief-title-input" id="briefModalTitle" type="text" placeholder="Working title" />
           </div>
           <button class="ghost-button modal-close-btn" id="closeBriefModal" type="button">Close ×</button>
@@ -559,29 +560,11 @@
           <div class="brief-meta-row">
             <label class="brief-meta-field">
               <span class="field-label">Format</span>
-              <select id="briefFormat">
-                <option value="">— choose format —</option>
-                <option value="Article">Article</option>
-                <option value="Short Post">Short Post</option>
-                <option value="Long Video">Long Video</option>
-                <option value="Short Video / Reel">Short Video / Reel</option>
-                <option value="Newsletter">Newsletter</option>
-                <option value="Email">Email</option>
-                <option value="Case Study">Case Study</option>
-                <option value="Guide / PDF">Guide / PDF</option>
-              </select>
+              <input type="text" id="briefFormat" placeholder="e.g. LinkedIn long-form article" />
             </label>
             <label class="brief-meta-field">
               <span class="field-label">Channel</span>
-              <select id="briefChannel">
-                <option value="">— choose channel —</option>
-                <option value="Blog">Blog</option>
-                <option value="Instagram">Instagram</option>
-                <option value="LinkedIn">LinkedIn</option>
-                <option value="TikTok">TikTok</option>
-                <option value="Newsletter">Newsletter</option>
-                <option value="YouTube">YouTube</option>
-              </select>
+              <input type="text" id="briefChannel" placeholder="e.g. LinkedIn" />
             </label>
             <label class="brief-meta-field">
               <span class="field-label">Publish date</span>

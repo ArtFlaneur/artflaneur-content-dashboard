@@ -348,6 +348,7 @@ const aiQuickAction = document.querySelector("#aiQuickAction");
 
 const briefModal = document.querySelector("#briefModal");
 const briefModalTitle = document.querySelector("#briefModalTitle");
+const briefFormatBadge = document.querySelector("#briefFormatBadge");
 const briefPersonaSelect = document.querySelector("#briefPersona");
 const briefStageSelect = document.querySelector("#briefStage");
 const briefStatusSelect = document.querySelector("#briefStatus");
@@ -914,6 +915,17 @@ function openBriefEditor(itemId) {
   briefPublishDate.value = item.publishDate || "";
   briefContentEditor.value = item.briefContent || "";
 
+  // Show format/channel badge
+  if (briefFormatBadge) {
+    const parts = [item.format, item.channel].filter(Boolean);
+    if (parts.length) {
+      briefFormatBadge.textContent = parts.join(" · ");
+      briefFormatBadge.hidden = false;
+    } else {
+      briefFormatBadge.hidden = true;
+    }
+  }
+
   const nextStatus = getNextStatus(found.status);
   advanceBriefButton.textContent = nextStatus ? `Advance to ${nextStatus}` : "Already published";
   advanceBriefButton.disabled = !nextStatus;
@@ -1401,9 +1413,16 @@ function applyAiRun() {
       : (artifact.contentItem ? [artifact.contentItem] : []);
 
     if (items.length) {
-      const briefText = latestAiRun?.displayText || "";
-      items.forEach((item) => {
-        const enrichedItem = { ...item, briefContent: briefText };
+      const fullText = latestAiRun?.displayText || "";
+
+      // Split response into per-section chunks: split on lines starting with a number + )
+      // e.g. "1) **LinkedIn..." "2) **Instagram..."
+      const sectionSplits = fullText.split(/(?=^\d+\)\s)/m).filter(Boolean);
+
+      items.forEach((item, index) => {
+        // Assign the matching numbered section if available, else full text
+        const sectionText = sectionSplits[index] || fullText;
+        const enrichedItem = { ...item, briefContent: sectionText.trim() };
         if (upsertContentItem(enrichedItem, persona, stage)) {
           applied.push(item.format || item.title || "content item");
         }
