@@ -40,18 +40,47 @@ const STAGE_FORMAT_GUIDANCE = {
   "Decision":      "action-oriented — remove friction, speak directly to the decision, include a clear next step."
 };
 
+// Maps legacy/vague channel names to canonical keys — handles old data.json values
+const CHANNEL_ALIAS_MAP = {
+  "email outreach":         "email newsletter",
+  "industry newsletters":   "email newsletter",
+  "newsletter":             "email newsletter",
+  "email":                  "email newsletter",
+  "cultural conferences":   "PDF / slides",
+  "partner referrals":      "PDF / slides",
+  "art fairs":              "PDF / slides",
+  "gallery networks":       "email newsletter",
+  "travel blogs":           "website article",
+  "app stores":             "website article",
+  "city guides":            "website article",
+  "TikTok":                 "Instagram",
+  "website":                "website article",
+  "blog":                   "website article",
+  "pdf":                    "PDF / slides",
+  "slides":                 "PDF / slides",
+  "youtube":                "YouTube"
+};
+
+// Normalise a raw channel list to canonical CHANNEL_FORMAT_MAP keys; fall back to all channels
+function normaliseChannels(channels) {
+  const canonical = Object.keys(CHANNEL_FORMAT_MAP);
+  const mapped = [...new Set(
+    channels.map((c) => CHANNEL_ALIAS_MAP[c] || c)
+  )].filter((c) => CHANNEL_FORMAT_MAP[c]);
+  // If nothing matched after normalisation, return ALL channels (safe fallback)
+  return mapped.length ? mapped : canonical;
+}
+
 // Returns a multi-line string listing every channel and all its formats for a persona
 function getPersonaFormatsText(channels) {
-  return channels
-    .filter((c) => CHANNEL_FORMAT_MAP[c])
+  return normaliseChannels(channels)
     .map((c) => `  - ${c}: ${CHANNEL_FORMAT_MAP[c].join(" | ")}`)
     .join("\n");
 }
 
 // Returns a flat list of all {channel, format} pairs for a persona (used for JSON shape building)
 function getPersonaFormatPairs(channels) {
-  return channels
-    .filter((c) => CHANNEL_FORMAT_MAP[c])
+  return normaliseChannels(channels)
     .flatMap((c) => CHANNEL_FORMAT_MAP[c].map((f) => ({ channel: c, format: f })));
 }
 
@@ -1883,10 +1912,12 @@ function buildPrompt() {
 
   // Pull the live persona object to get their channels
   const personaObj = dashboardData.personas.find((p) => p.name === persona);
-  const personaChannels = personaObj?.channels || [];
-  const channelList = personaChannels.length ? personaChannels.join(", ") : "not specified";
-  const formatsText = personaChannels.length ? getPersonaFormatsText(personaChannels) : "";
-  const formatPairs = personaChannels.length ? getPersonaFormatPairs(personaChannels) : [];
+  const rawChannels = personaObj?.channels || [];
+  // normaliseChannels falls back to ALL channels if none match — prompt always has a format list
+  const personaChannels = rawChannels.length ? normaliseChannels(rawChannels) : Object.keys(CHANNEL_FORMAT_MAP);
+  const channelList = personaChannels.join(", ");
+  const formatsText = getPersonaFormatsText(personaChannels);
+  const formatPairs = getPersonaFormatPairs(personaChannels);
   const stageGuidance = STAGE_FORMAT_GUIDANCE[stage] || STAGE_FORMAT_GUIDANCE["Awareness"];
 
   let promptLines = [];
