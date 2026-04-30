@@ -103,7 +103,18 @@ async function readRequestBody(request) {
   }
 
   const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
+
+  if (!raw.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const error = new Error("Request body must be valid JSON.");
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 function getAzureConfig() {
@@ -249,7 +260,7 @@ const server = http.createServer(async (request, response) => {
       await fs.writeFile(DATA_FILE, JSON.stringify(body, null, 2), "utf8");
       sendJson(response, 200, { ok: true });
     } catch (error) {
-      sendJson(response, 500, { error: error.message || "Failed to save state." });
+      sendJson(response, error.statusCode || 500, { error: error.message || "Failed to save state." });
     }
     return;
   }
@@ -267,7 +278,7 @@ const server = http.createServer(async (request, response) => {
       const result = await callAzureWithFallback(prompt);
       sendJson(response, 200, result);
     } catch (error) {
-      sendJson(response, 500, { error: error.message || "Unknown server error." });
+      sendJson(response, error.statusCode || 500, { error: error.message || "Unknown server error." });
     }
     return;
   }
@@ -306,7 +317,7 @@ const server = http.createServer(async (request, response) => {
         thumbnail: item.snippet?.thumbnails?.default?.url || ""
       });
     } catch (error) {
-      sendJson(response, 500, { error: error.message || "YouTube fetch failed." });
+      sendJson(response, error.statusCode || 500, { error: error.message || "YouTube fetch failed." });
     }
     return;
   }

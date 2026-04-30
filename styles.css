@@ -1179,7 +1179,8 @@ textarea {
   font-size: 0.92rem;
 }
 
-.subtopic-block {
+.subtopic-block,
+.question-block {
   display: grid;
   gap: 10px;
   padding: 14px;
@@ -1187,7 +1188,8 @@ textarea {
   background: rgba(16, 43, 37, 0.04);
 }
 
-.subtopic-list {
+.subtopic-list,
+.question-list {
   margin: 0;
   padding-left: 18px;
 }

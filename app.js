@@ -592,6 +592,11 @@ const initialData = {
       body: "Spot missing subtopics and weak stage coverage."
     },
     {
+      id: "question-mining",
+      title: "Mine persona questions",
+      body: "Extract real AI-chatbot questions for one cluster and stage." 
+    },
+    {
       id: "content-brief",
       title: "Draft an English brief",
       body: "Turn one topic into a concise, publishable brief."
@@ -690,6 +695,7 @@ const editClusterIntentSelect = document.querySelector("#editClusterIntent");
 const editClusterScoreInput = document.querySelector("#editClusterScore");
 const editClusterSummaryInput = document.querySelector("#editClusterSummary");
 const editClusterSubtopicsInput = document.querySelector("#editClusterSubtopics");
+const editClusterQuestionsInput = document.querySelector("#editClusterQuestions");
 const closeEditClusterModalButton = document.querySelector("#closeEditClusterModal");
 
 const selectedFilters = {
@@ -702,6 +708,7 @@ let activeAiFormatKey = null;
 let activeAiSourceItemId = null;
 let activeAiPersona = null;
 let activeAiStage = null;
+let activeAiClusterKey = null;
 let latestAiRun = null;
 let activeBriefEdit = null;
 let activeEditPersonaId = null;
@@ -745,6 +752,25 @@ function renderOption(value, label, selected = false) {
   return `<option value="${escapeHtml(value)}"${selected ? " selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
+async function readJsonResponse(response) {
+  const raw = await response.text();
+
+  if (!raw.trim()) {
+    const error = new Error(`Empty response from server (${response.status}).`);
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const error = new Error(`Server returned invalid JSON (${response.status}).`);
+    error.statusCode = response.status;
+    error.responseText = raw.slice(0, 300);
+    throw error;
+  }
+}
+
 function uniqueList(values) {
   return [...new Set((values || []).map((value) => String(value).trim()).filter(Boolean))];
 }
@@ -756,12 +782,17 @@ function normalizeCluster(cluster) {
     score: cluster?.score || "AI draft",
     intent: cluster?.intent || "Awareness",
     summary: cluster?.summary || "AI-generated cluster summary.",
-    subtopics: uniqueList(cluster?.subtopics)
+    subtopics: uniqueList(cluster?.subtopics),
+    questions: uniqueList(cluster?.questions)
   };
 }
 
 function getClusterSubtopics(cluster) {
   return uniqueList(cluster?.subtopics);
+}
+
+function getClusterQuestions(cluster) {
+  return uniqueList(cluster?.questions);
 }
 
 function generateId() {
@@ -974,6 +1005,13 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+function splitQuestionList(value) {
+  return String(value)
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function slugify(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -1045,6 +1083,19 @@ function getFocusedCluster(stage = getFocusedStage(), persona = getFocusedPerson
   )[0] || null;
 }
 
+function getAiTargetCluster(stage = getAiTargetStage(), persona = getAiTargetPersona()) {
+  if (activeAiClusterKey) {
+    const exactCluster = dashboardData.clusters.find((cluster) => clusterKey(cluster) === activeAiClusterKey) || null;
+    if (exactCluster) {
+      return exactCluster;
+    }
+
+    activeAiClusterKey = null;
+  }
+
+  return getFocusedCluster(stage, persona);
+}
+
 function getActiveAiTask() {
   return dashboardData.aiTasks.find((task) => task.id === activeAiTaskId) || dashboardData.aiTasks[0] || null;
 }
@@ -1069,6 +1120,93 @@ function normalizeAiArtifact(value) {
   return typeof value === "string" ? normalizeAiTypography(value) : value;
 }
 
+function getBalancedJsonCandidate(text) {
+  const source = String(text || "").trim();
+  const startIndex = source.search(/[\[{]/);
+
+  if (startIndex < 0) {
+    return "";
+  }
+
+  const stack = [];
+  let inString = false;
+  let isEscaped = false;
+
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        isEscaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{" || char === "[") {
+      stack.push(char);
+      continue;
+    }
+
+    if (char === "}" || char === "]") {
+      const expected = char === "}" ? "{" : "[";
+      if (stack[stack.length - 1] !== expected) {
+        return "";
+      }
+
+      stack.pop();
+
+      if (!stack.length) {
+        return source.slice(startIndex, index + 1);
+      }
+    }
+  }
+
+  return "";
+}
+
+function parseStructuredAppData(rawText) {
+  const raw = String(rawText || "")
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+
+  const candidates = [raw, getBalancedJsonCandidate(raw)].filter(Boolean);
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      return {
+        appData: normalizeAiArtifact(JSON.parse(candidate)),
+        repaired: candidate !== raw
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  throw new Error("No JSON candidate found inside <app-data>.");
+}
+
 function extractAppData(text) {
   // Unescape HTML entities in case the text went through JSON serialisation
   const normalized = String(text || "")
@@ -1084,11 +1222,13 @@ function extractAppData(text) {
   }
 
   try {
-    // Strip markdown code fences the model sometimes wraps around JSON
-    const raw = match[1].replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    const appData = normalizeAiArtifact(JSON.parse(raw));
+    const parsed = parseStructuredAppData(match[1]);
     const displayText = sanitized.replace(match[0], "").trim();
-    return { appData, displayText };
+    if (parsed.repaired) {
+      console.warn("[extractAppData] Recovered malformed JSON inside <app-data> by trimming trailing content.");
+    }
+
+    return { appData: parsed.appData, displayText };
   } catch (err) {
     console.warn("[extractAppData] JSON parse failed:", err.message, "\nRaw:", match[1].slice(0, 200));
     return { appData: null, displayText: normalizeAiTypography(text).trim() };
@@ -1314,7 +1454,8 @@ function upsertCluster(clusterData, fallbackStage, fallbackPersona) {
     score: clusterData.score || "AI draft",
     intent: clusterData.intent || fallbackStage || getFocusedStage(),
     summary: clusterData.summary || "AI-generated cluster summary.",
-    subtopics: uniqueList(clusterData.subtopics)
+    subtopics: uniqueList(clusterData.subtopics),
+    questions: uniqueList(clusterData.questions)
   });
 
   const existingIndex = dashboardData.clusters.findIndex(
@@ -1328,6 +1469,53 @@ function upsertCluster(clusterData, fallbackStage, fallbackPersona) {
   }
 
   dashboardData.clusters.unshift(nextCluster);
+  return true;
+}
+
+function upsertClusterResearch(clusterData, fallbackStage, fallbackPersona) {
+  const fallbackCluster = activeAiClusterKey
+    ? dashboardData.clusters.find((cluster) => clusterKey(cluster) === activeAiClusterKey) || null
+    : null;
+  const title = String(clusterData?.title || fallbackCluster?.title || "").trim();
+  const persona = String(clusterData?.persona || fallbackPersona || fallbackCluster?.persona || getFocusedPersona() || "").trim();
+  const intent = String(clusterData?.intent || fallbackStage || fallbackCluster?.intent || getFocusedStage() || "Awareness").trim();
+
+  if (!title || !persona) {
+    return false;
+  }
+
+  const existingIndex = dashboardData.clusters.findIndex((cluster) => {
+    if (activeAiClusterKey && clusterKey(cluster) === activeAiClusterKey) {
+      return true;
+    }
+
+    return normalizeLabel(cluster.title) === normalizeLabel(title)
+      && normalizeLabel(cluster.persona) === normalizeLabel(persona)
+      && cluster.intent === intent;
+  });
+  const existingCluster = existingIndex >= 0 ? dashboardData.clusters[existingIndex] : null;
+  const nextCluster = normalizeCluster({
+    ...existingCluster,
+    title,
+    persona,
+    intent,
+    score: clusterData?.score || existingCluster?.score || "AI draft",
+    summary: clusterData?.summary || existingCluster?.summary || "AI-generated cluster summary.",
+    subtopics: Array.isArray(clusterData?.subtopics) && clusterData.subtopics.length
+      ? clusterData.subtopics
+      : existingCluster?.subtopics,
+    questions: Array.isArray(clusterData?.questions) && clusterData.questions.length
+      ? clusterData.questions
+      : existingCluster?.questions
+  });
+
+  if (existingIndex >= 0) {
+    dashboardData.clusters.splice(existingIndex, 1, nextCluster);
+  } else {
+    dashboardData.clusters.unshift(nextCluster);
+  }
+
+  activeAiClusterKey = clusterKey(nextCluster);
   return true;
 }
 
@@ -1468,6 +1656,7 @@ function setAiDraftContextFromItem(item) {
   activeAiSourceItemId = item.id;
   activeAiPersona = item.persona || null;
   activeAiStage = item.stage || null;
+  activeAiClusterKey = null;
   activeAiTaskId = "full-draft";
   activeAiFormatKey = item.format && item.channel
     ? formatPairKey({ format: item.format, channel: item.channel })
@@ -1730,7 +1919,7 @@ async function fetchYouTubeStats(channelId) {
         apiKey: channel.apiKey
       })
     });
-    const data = await response.json();
+    const data = await readJsonResponse(response);
 
     if (!response.ok) {
       setAiStatus(data.error || "YouTube fetch failed", "error");
@@ -1849,6 +2038,7 @@ function openEditCluster(key) {
   editClusterScoreInput.value = cluster.score;
   editClusterSummaryInput.value = cluster.summary;
   editClusterSubtopicsInput.value = cluster.subtopics.join(", ");
+  editClusterQuestionsInput.value = getClusterQuestions(cluster).join("\n");
 
   editClusterModal.hidden = false;
 }
@@ -1867,7 +2057,8 @@ function saveEditCluster(event) {
     intent: formData.get("intent").toString(),
     score: formData.get("score").toString().trim(),
     summary: formData.get("summary").toString().trim(),
-    subtopics: splitList(formData.get("subtopics").toString())
+    subtopics: splitList(formData.get("subtopics").toString()),
+    questions: splitQuestionList(formData.get("questions"))
   });
 
   saveState();
@@ -1885,6 +2076,7 @@ function openBriefFromCluster(key) {
 
   activeAiPersona = cluster.persona || null;
   activeAiStage = cluster.intent || null;
+  activeAiClusterKey = key;
   activeAiTaskId = "content-brief";
   activeAiSourceItemId = null;
 
@@ -1892,6 +2084,22 @@ function openBriefFromCluster(key) {
   buildPrompt();
   showSection("ai");
   setAiStatus(`Brief prompt ready for: ${cluster.title}`, "success");
+}
+
+function openQuestionMiningFromCluster(key) {
+  const cluster = dashboardData.clusters.find((c) => clusterKey(c) === key);
+  if (!cluster) return;
+
+  activeAiPersona = cluster.persona || null;
+  activeAiStage = cluster.intent || null;
+  activeAiClusterKey = key;
+  activeAiTaskId = "question-mining";
+  activeAiSourceItemId = null;
+
+  renderAll();
+  buildPrompt();
+  showSection("ai");
+  setAiStatus(`Question mining prompt ready for: ${cluster.title}`, "success");
 }
 
 function applyAiRun() {
@@ -1902,8 +2110,8 @@ function applyAiRun() {
     return;
   }
 
-  const persona = getFocusedPersona();
-  const stage = getFocusedStage();
+  const persona = getAiTargetPersona();
+  const stage = getAiTargetStage();
   const applied = [];
 
   if (artifact.type === "strategy-plan") {
@@ -1925,6 +2133,12 @@ function applyAiRun() {
   if (artifact.type === "cluster-gaps") {
     if (artifact.cluster && upsertCluster(artifact.cluster, stage, persona)) {
       applied.push("cluster");
+    }
+  }
+
+  if (artifact.type === "question-mining") {
+    if (artifact.cluster && upsertClusterResearch(artifact.cluster, stage, persona)) {
+      applied.push("cluster questions");
     }
   }
 
@@ -2007,6 +2221,7 @@ function loadAiHistoryEntry(entryId) {
   activeAiSourceItemId = null;
   activeAiPersona = null;
   activeAiStage = null;
+  activeAiClusterKey = null;
   renderHints();
   buildPrompt();
   promptOutput.value = getHistoryPrompt(entry);
@@ -2347,6 +2562,7 @@ function renderClusters() {
                                   (cluster) => {
                                     const key = clusterKey(cluster);
                                     const subtopics = getClusterSubtopics(cluster);
+                                    const questions = getClusterQuestions(cluster);
                                     return `
                                     <article class="cluster-card">
                                       <div class="cluster-head">
@@ -2364,6 +2580,7 @@ function renderClusters() {
                                         <span class="cluster-taxonomy-pill">1 topic</span>
                                         <span class="cluster-taxonomy-arrow">→</span>
                                         <span class="cluster-taxonomy-pill">${subtopics.length} subtopics</span>
+                                        <span class="cluster-taxonomy-pill">${questions.length} AI questions</span>
                                       </div>
                                       <p class="cluster-structure-copy">This card is the top-level topic. Every item below belongs under it as a supporting subtopic.</p>
                                       <div class="subtopic-block">
@@ -2372,7 +2589,16 @@ function renderClusters() {
                                           ${subtopics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}
                                         </ul>
                                       </div>
+                                      ${questions.length
+                                        ? `<div class="question-block">
+                                        <p class="cluster-structure-kicker">Persona questions asked in AI chatbots</p>
+                                        <ul class="question-list">
+                                          ${questions.map((question) => `<li>${escapeHtml(question)}</li>`).join("")}
+                                        </ul>
+                                      </div>`
+                                        : ""}
                                       <div class="cluster-card-actions">
+                                        <button class="ghost-button-sm" type="button" data-mine-cluster="${escapeHtml(key)}">Mine questions</button>
                                         <button class="ghost-button-sm" type="button" data-brief-cluster="${escapeHtml(key)}">Draft brief</button>
                                         <button class="ghost-button-sm" type="button" data-edit-cluster="${escapeHtml(key)}">Edit</button>
                                         <button class="ghost-button-sm ghost-button-sm-danger" type="button" data-delete-cluster="${escapeHtml(key)}">Delete</button>
@@ -2517,12 +2743,13 @@ function buildPrompt() {
   const task = getActiveAiTask();
   const persona = getAiTargetPersona();
   const stage = getAiTargetStage();
-  const cluster = getFocusedCluster(stage, persona);
+  const cluster = getAiTargetCluster(stage, persona);
   const personaObj = dashboardData.personas.find((item) => item.name === persona) || null;
   const hasCluster = Boolean(cluster);
   const clusterTitle = cluster?.title || `the first ${stage.toLowerCase()} cluster for ${persona}`;
   const clusterSummary = cluster?.summary || "No saved cluster exists yet. Generate one from persona pains, goals, and channel behavior.";
   const clusterSubtopics = getClusterSubtopics(cluster);
+  const clusterQuestions = getClusterQuestions(cluster);
   const stageBadge = getStageBadge(stage);
   const stageMotion = getStageMotion(stage);
   const punctuationRule = "Never use em dashes or en dashes anywhere in the response. Use a plain hyphen - or rewrite the sentence.";
@@ -2546,7 +2773,10 @@ function buildPrompt() {
     `Cluster summary: ${clusterSummary}`,
     clusterSubtopics.length
       ? `Saved subtopics nested under this topic: ${clusterSubtopics.join("; ")}.`
-      : "No saved subtopics yet. If you need a supporting angle, derive it from the cluster summary and persona pains without changing the core topic."
+      : "No saved subtopics yet. If you need a supporting angle, derive it from the cluster summary and persona pains without changing the core topic.",
+    clusterQuestions.length
+      ? `Saved persona questions asked in AI chatbots: ${clusterQuestions.join("; ")}.`
+      : "No saved persona AI-chatbot questions yet. If useful, derive natural-language questions this persona would ask ChatGPT, Perplexity, Claude, or Gemini while researching this topic."
   ].filter(Boolean);
 
   let promptLines = [];
@@ -2566,11 +2796,12 @@ function buildPrompt() {
         ? `Use this priority cluster as context: ${clusterTitle}.`
         : "There are no saved clusters yet, so generate the first strategic cluster from the persona details in the dashboard.",
       "Topic cluster rule: treat each cluster as ONE top-level topic, and place every supporting angle beneath it as a subtopic inside that topic cluster.",
-      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in the real values as you write: <app-data>${JSON.stringify({type:"strategy-plan",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"},contentItem:{title:"...",persona,stage,status:"Brief"}})}</app-data>`,
+      "Question mining rule: every cluster must also include natural-language questions this persona would ask inside AI chatbots while researching the topic.",
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in the real values as you write: <app-data>${JSON.stringify({type:"strategy-plan",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],questions:["..."],score:"AI draft"},contentItem:{title:"...",persona,stage,status:"Brief"}})}</app-data>`,
       "Then write the full plan below.",
       "Return:",
       "1. Persona insight summary with pains, desired outcomes, and objections.",
-      "2. One core topic cluster and six supporting subtopics nested under that topic.",
+      "2. One core topic cluster, six supporting subtopics nested under that topic, and six persona questions phrased as natural AI-chatbot searches.",
       "3. Three article ideas ranked by inbound impact — each with a specific format and channel from the list above.",
       "4. One content brief with title, promise, outline, CTA, and distribution notes (include the format and channel).",
       "5. A short explanation of why this supports the inbound methodology."
@@ -2624,17 +2855,47 @@ function buildPrompt() {
         : `No saved cluster exists yet. Propose the first core cluster for ${persona} at the ${stage} stage.`,
       `Cluster summary: ${clusterSummary}`,
       "Topic cluster rule: return one top-level topic and keep every supporting idea nested beneath it as a subtopic, not as a separate peer cluster.",
-      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"cluster-gaps",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],score:"AI draft"}})}</app-data>`,
+      "Question mining rule: add natural-language questions this persona would ask in AI chatbots when trying to understand, compare, or solve this topic.",
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> — fill in real values: <app-data>${JSON.stringify({type:"cluster-gaps",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,subtopics:["..."],questions:["..."],score:"AI draft"}})}</app-data>`,
       "Then write the full analysis below.",
       "Return:",
       "1. A short diagnosis of the current gap.",
       "2. One improved core cluster with a clear promise.",
       "3. Eight supporting subtopics nested beneath that topic with clear angles.",
-      "4. Two conversion assets or lead magnets.",
-      "5. Internal linking notes showing how awareness, consideration, and decision content should connect."
+      "4. Six persona questions phrased exactly like AI-chatbot searches or prompts.",
+      "5. Two conversion assets or lead magnets.",
+      "6. Internal linking notes showing how awareness, consideration, and decision content should connect."
     ];
     weeklyFocus.textContent = `Close the topic gap around ${clusterTitle} for ${stage.toLowerCase()} intent.`;
     runAiButton.textContent = "Run cluster analysis";
+  }
+
+  if (task?.id === "question-mining") {
+    promptLines = [
+      "You are a senior inbound content strategist working for Art Flaneur.",
+      "Mine the real questions this persona would ask AI chatbots while researching one cluster in English.",
+      punctuationRule,
+      ...productFoundationLines,
+      `Focus on persona: ${persona}.`,
+      ...personaPromptLines,
+      `Focus on stage: ${stageBadge}.`,
+      `Methodology mapping for this request: ${stage} = ${stageMotion}.`,
+      ...clusterPromptLines,
+      hasCluster
+        ? `Mine questions for this exact cluster: ${clusterTitle}. Do not rename it or replace it with a different topic.`
+        : `No saved cluster exists yet. Generate the first cluster and its AI-chatbot questions for ${persona} at the ${stage} stage.`,
+      "Question mining rule: return natural-language prompts exactly as the persona would type them into ChatGPT, Perplexity, Claude, or Gemini.",
+      "Intent rule: include a mix of discovery, comparison, objection, and action-oriented questions without drifting away from the saved cluster.",
+      `IMPORTANT: Before writing anything else, output this JSON on the very first line, wrapped in <app-data></app-data> - fill in real values: <app-data>${JSON.stringify({type:"question-mining",cluster:{title:clusterTitle,persona,summary:"...",intent:stage,questions:["..."],score:"AI draft"}})}</app-data>`,
+      "Then write the full analysis below.",
+      "Return:",
+      "1. A short diagnosis of what the persona is trying to learn or unblock inside this cluster.",
+      "2. Ten persona questions phrased exactly like AI-chatbot searches or prompts.",
+      "3. A quick grouping of those questions by intent: discovery, comparison, objection, action.",
+      "4. Two notes on how these questions should change the cluster's future briefs and drafts."
+    ].filter(Boolean);
+    weeklyFocus.textContent = `Mine persona questions for ${clusterTitle}.`;
+    runAiButton.textContent = "Run question mining";
   }
 
   if (task?.id === "content-brief") {
@@ -2671,6 +2932,7 @@ function buildPrompt() {
       targetFormat ? `Write one content brief for this format only: ${targetFormat.format} — ${targetFormat.channel}.` : "No format selected.",
       "The brief must clearly depend on the context above. Do not invent a different audience, product, offer, or topic.",
       "Use the product foundation to shape positioning and proof, use the persona pains/goals to shape the angle, and use the cluster plus subtopics to shape the topic and supporting points.",
+      "Use any saved persona AI-chatbot questions to mirror the real wording, intent, and objections the audience brings into discovery.",
       "Remember that this asset is one format inside a wider multi-format plan for the same persona and stage. Build the brief so it has a clear job relative to the other available formats instead of trying to do everything at once.",
       "Do not merge multiple formats into one asset. Keep the message system aligned with the wider stage plan, but make the execution native to the selected format and channel.",
       "Pick one primary angle inside the cluster for this specific asset. The other saved subtopics may appear only as supporting proof, objections, internal-link opportunities, or follow-up angles.",
@@ -2945,7 +3207,8 @@ function addCluster(event) {
     score: formData.get("score").toString().trim(),
     intent: formData.get("intent").toString(),
     summary: formData.get("summary").toString().trim(),
-    subtopics: splitList(formData.get("subtopics").toString())
+    subtopics: splitList(formData.get("subtopics").toString()),
+    questions: splitQuestionList(formData.get("questions"))
   }));
 
   saveState();
@@ -3020,7 +3283,7 @@ async function runAiPlan() {
       body: JSON.stringify({ prompt: requestPrompt })
     });
 
-    const payload = await response.json();
+    const payload = await readJsonResponse(response);
 
     if (!response.ok) {
       throw new Error(payload.error || "Model request failed.");
@@ -3058,7 +3321,11 @@ async function runAiPlan() {
     };
     saveAiHistoryEntry(latestAiRun);
     updateApplyState();
-    setAiStatus(`${task?.title || "Task"} via ${payload.providerMode}`, "success");
+    if (parsed.appData) {
+      setAiStatus(`${task?.title || "Task"} via ${payload.providerMode}`, "success");
+    } else {
+      setAiStatus("Model returned text, but structured result could not be parsed", "error");
+    }
   } catch (error) {
     aiResponse.value = error.message.includes("Failed to fetch")
       ? "The dashboard is not being served through the local proxy yet. Start the Node server and open http://127.0.0.1:3000."
@@ -3075,6 +3342,7 @@ personaFilter.addEventListener("change", (event) => {
   selectedFilters.persona = event.target.value;
   activeAiSourceItemId = null;
   activeAiPersona = null;
+  activeAiClusterKey = null;
   renderAll();
 });
 
@@ -3082,6 +3350,7 @@ stageFilter.addEventListener("change", (event) => {
   selectedFilters.stage = event.target.value;
   activeAiSourceItemId = null;
   activeAiStage = null;
+  activeAiClusterKey = null;
   renderAll();
 });
 
@@ -3090,6 +3359,7 @@ aiQuickAction?.addEventListener("click", () => {
   activeAiSourceItemId = null;
   activeAiPersona = null;
   activeAiStage = null;
+  activeAiClusterKey = null;
   buildPrompt();
   showSection("ai");
   setAiStatus("Strategic plan ready");
@@ -3109,6 +3379,7 @@ aiTaskList.addEventListener("click", (event) => {
 
   activeAiTaskId = trigger.dataset.aiTask;
   activeAiSourceItemId = null;
+  activeAiClusterKey = null;
   renderHints();
   renderAiFormats();
   buildPrompt();
@@ -3194,6 +3465,12 @@ channelForm.addEventListener("submit", addChannel);
 editClusterForm.addEventListener("submit", saveEditCluster);
 
 clusterGrid.addEventListener("click", (event) => {
+  const mineTrigger = event.target.closest("[data-mine-cluster]");
+  if (mineTrigger) {
+    openQuestionMiningFromCluster(mineTrigger.dataset.mineCluster);
+    return;
+  }
+
   const briefTrigger = event.target.closest("[data-brief-cluster]");
   if (briefTrigger) {
     openBriefFromCluster(briefTrigger.dataset.briefCluster);
