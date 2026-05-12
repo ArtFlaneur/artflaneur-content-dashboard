@@ -1983,6 +1983,8 @@ function renderClusters() {
             return "";
           }
 
+          const personaClusterCount = personaClusters.length;
+
           return `
             <article class="cluster-persona-board">
               <div class="cluster-persona-head">
@@ -1990,16 +1992,24 @@ function renderClusters() {
                   <p class="card-label eyebrow">Persona</p>
                   <h4 class="persona-name">${persona.name}</h4>
                 </div>
+                <div class="cluster-persona-meta">
+                  <span class="status-pill">${personaClusterCount} cluster${personaClusterCount === 1 ? "" : "s"}</span>
+                </div>
               </div>
               <div class="cluster-stage-grid">
                 ${visibleStages
-                  .map((stage) => {
+                  .map((stage, stageIndex) => {
                     const stageClusters = getFilteredClusters(persona.name, stage.stage);
+                    const stageFocus = (stage.focus || []).slice(0, 2).join(" · ");
 
                     return `
-                      <section class="cluster-stage-column">
+                      <section class="cluster-stage-column" data-stage="${stage.stage}">
                         <div class="cluster-stage-head">
-                          <span class="stage-pill" data-stage="${stage.stage}">${stage.stage}</span>
+                          <div class="cluster-stage-copy">
+                            <span class="cluster-stage-order">${String(stageIndex + 1).padStart(2, "0")}</span>
+                            <span class="stage-pill" data-stage="${stage.stage}">${stage.stage}</span>
+                            <p class="cluster-stage-note">${stageFocus}</p>
+                          </div>
                           <span class="pipeline-count">${stageClusters.length}</span>
                         </div>
                         <div class="cluster-stage-stack">
@@ -2011,7 +2021,7 @@ function renderClusters() {
                                     return `
                                     <article class="cluster-card">
                                       <div class="cluster-head">
-                                        <div>
+                                        <div class="cluster-head-copy">
                                           <h4 class="cluster-title">${cluster.title}</h4>
                                           <p class="topic-copy">${cluster.summary}</p>
                                         </div>
@@ -2020,9 +2030,12 @@ function renderClusters() {
                                           <strong>${cluster.score}</strong>
                                         </div>
                                       </div>
-                                      <ul>
-                                        ${cluster.subtopics.map((topic) => `<li>${topic}</li>`).join("")}
-                                      </ul>
+                                      <div class="cluster-subtopics-block">
+                                        <p class="card-label">Subtopics</p>
+                                        <div class="cluster-subtopics">
+                                          ${cluster.subtopics.map((topic) => `<span class="tag cluster-subtopic">${topic}</span>`).join("")}
+                                        </div>
+                                      </div>
                                       <div class="cluster-card-actions">
                                         <button class="ghost-button-sm" type="button" data-brief-cluster="${key}">Draft brief</button>
                                         <button class="ghost-button-sm" type="button" data-edit-cluster="${key}">Edit</button>
@@ -2050,20 +2063,33 @@ function renderClusters() {
 
 function renderPipeline() {
   const hasAnyPipelineItem = Object.values(dashboardData.pipeline).some((lane) => lane.length);
+  const laneMeta = {
+    Idea: { cue: "Unshaped opportunities waiting for a clear angle." },
+    Brief: { cue: "Approved direction with a promise and structure." },
+    Draft: { cue: "Working assets in production and active editing." },
+    Review: { cue: "Near-finished work awaiting a final pass." },
+    Published: { cue: "Live assets ready to compound and be reused." }
+  };
   const columns = Object.entries(dashboardData.pipeline)
-    .map(([status, items]) => {
+    .map(([status, items], laneIndex) => {
       const filtered = items.filter((item) => isPersonaMatch(item.persona) && isStageMatch(item.stage));
       const nextStatus = getNextStatus(status);
       const emptyMessage = hasAnyPipelineItem
         ? "Nothing in this lane."
         : "No content in production yet. Generate clusters and briefs in AI Studio, or add the first item manually.";
+      const meta = laneMeta[status] || { cue: "" };
 
       return `
-        <div class="pipeline-column">
+        <div class="pipeline-column" data-lane="${status}">
           <div class="pipeline-header">
-            <strong>${status}</strong>
+            <div class="pipeline-header-copy">
+              <span class="pipeline-order">${String(laneIndex + 1).padStart(2, "0")}</span>
+              <strong>${status}</strong>
+              <p class="pipeline-lane-copy">${meta.cue}</p>
+            </div>
             <span class="pipeline-count">${filtered.length}</span>
           </div>
+          <div class="pipeline-stack">
           ${filtered.length
             ? filtered
                 .map(
@@ -2087,7 +2113,8 @@ function renderPipeline() {
                   `
                 )
                 .join("")
-            : `<div class="empty-state">${emptyMessage}</div>`}
+            : `<div class="empty-state empty-state-compact">${emptyMessage}</div>`}
+          </div>
         </div>
       `;
     })
