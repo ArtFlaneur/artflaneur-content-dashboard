@@ -35,19 +35,8 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml"
 };
 
-const SECURITY_HEADERS = {
-  "Cache-Control": "no-store",
-  "Referrer-Policy": "no-referrer",
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "default-src 'self'; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
-};
-
 function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    ...SECURITY_HEADERS
-  });
+  response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload));
 }
 
@@ -103,18 +92,7 @@ async function readRequestBody(request) {
   }
 
   const raw = Buffer.concat(chunks).toString("utf8");
-
-  if (!raw.trim()) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const error = new Error("Request body must be valid JSON.");
-    error.statusCode = 400;
-    throw error;
-  }
+  return raw ? JSON.parse(raw) : {};
 }
 
 function getAzureConfig() {
@@ -155,7 +133,6 @@ async function callAzureWithFallback(prompt) {
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 16000,
         max_completion_tokens: 16000
       }
     },
@@ -230,7 +207,7 @@ async function serveStatic(request, response) {
     const extension = path.extname(filePath).toLowerCase();
     response.writeHead(200, {
       "Content-Type": MIME_TYPES[extension] || "application/octet-stream",
-      ...SECURITY_HEADERS
+      "Cache-Control": "no-store"
     });
     response.end(content);
   } catch {
@@ -260,7 +237,7 @@ const server = http.createServer(async (request, response) => {
       await fs.writeFile(DATA_FILE, JSON.stringify(body, null, 2), "utf8");
       sendJson(response, 200, { ok: true });
     } catch (error) {
-      sendJson(response, error.statusCode || 500, { error: error.message || "Failed to save state." });
+      sendJson(response, 500, { error: error.message || "Failed to save state." });
     }
     return;
   }
@@ -278,16 +255,16 @@ const server = http.createServer(async (request, response) => {
       const result = await callAzureWithFallback(prompt);
       sendJson(response, 200, result);
     } catch (error) {
-      sendJson(response, error.statusCode || 500, { error: error.message || "Unknown server error." });
+      sendJson(response, 500, { error: error.message || "Unknown server error." });
     }
     return;
   }
 
-  if (request.method === "POST" && request.url === "/api/youtube/stats") {
+  if (request.method === "GET" && request.url.startsWith("/api/youtube/stats")) {
     try {
-      const body = await readRequestBody(request);
-      const channelId = body.channelId;
-      const apiKey = body.apiKey;
+      const url = new URL(request.url, `http://${request.headers.host}`);
+      const channelId = url.searchParams.get("channelId");
+      const apiKey = url.searchParams.get("apiKey");
 
       if (!channelId || !apiKey) {
         sendJson(response, 400, { error: "channelId and apiKey are required." });
@@ -317,7 +294,7 @@ const server = http.createServer(async (request, response) => {
         thumbnail: item.snippet?.thumbnails?.default?.url || ""
       });
     } catch (error) {
-      sendJson(response, error.statusCode || 500, { error: error.message || "YouTube fetch failed." });
+      sendJson(response, 500, { error: error.message || "YouTube fetch failed." });
     }
     return;
   }

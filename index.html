@@ -71,6 +71,33 @@
       </aside>
 
       <main class="content-area">
+        <section class="topbar" aria-label="Workspace scope controls">
+          <div class="topbar-copy">
+            <p class="eyebrow">Workspace Scope</p>
+            <h2>Keep one audience and one buyer stage in view across the whole dashboard.</h2>
+            <p class="topbar-copy-note">
+              These controls shape Overview, Personas, Topic Clusters, Content Pipeline, and AI Studio together.
+            </p>
+          </div>
+          <div class="command-panel">
+            <div class="command-panel-head">
+              <p class="eyebrow">Current focus</p>
+              <h3 class="subheading">Set the active workspace targeting</h3>
+            </div>
+            <div class="topbar-actions">
+              <label class="filter-card">
+                <span>Persona scope</span>
+                <select id="personaFilter" class="ai-context-select" aria-label="Filter by persona"></select>
+              </label>
+              <label class="filter-card">
+                <span>Stage scope</span>
+                <select id="stageFilter" class="ai-context-select" aria-label="Filter by buyer stage"></select>
+              </label>
+              <button class="ghost-button" id="clearWorkspaceScope" type="button">Reset workspace scope</button>
+            </div>
+            <p id="workspaceScopeSummary" class="topbar-copy-note"></p>
+          </div>
+        </section>
 
         <section id="overview" class="panel hero-panel is-visible">
           <div class="hero-copy">
@@ -93,63 +120,6 @@
               This dashboard follows a simple flow: define personas, map their journey, group strategic topics,
               move content through production, and publish in English with guidance at each step.
             </p>
-            <div class="hero-grid overview-metrics-bar" id="overviewMetrics"></div>
-            <div class="methodology-strip" aria-label="Inbound methodology model">
-              <article class="methodology-card">
-                <p class="eyebrow">Stage Map</p>
-                <h4 class="subheading">Buyer stage and inbound motion stay paired</h4>
-                <ul class="methodology-list">
-                  <li><strong>Awareness</strong> = Attract</li>
-                  <li><strong>Consideration</strong> = Engage</li>
-                  <li><strong>Decision</strong> = Delight</li>
-                </ul>
-              </article>
-              <article class="methodology-card">
-                <p class="eyebrow">Cluster Taxonomy</p>
-                <h4 class="subheading">Every cluster is one topic with nested subtopics</h4>
-                <p class="section-copy">Marketers and AI should treat the card title as the top-level topic. Every supporting idea below it belongs inside that topic cluster, not beside it as a separate peer.</p>
-              </article>
-            </div>
-            <div class="foundation-panel">
-              <div class="foundation-head">
-                <div>
-                  <p class="eyebrow">Brand Foundations</p>
-                  <h4 class="subheading">Define what Art Flaneur is before asking AI to market it</h4>
-                </div>
-                <p class="section-copy">This block is the marketer-facing source of truth for product description, mission, value proposition, and Golden Circle. AI Studio uses it in every prompt.</p>
-              </div>
-              <form id="brandFoundationForm" class="foundation-grid">
-                <label class="foundation-field foundation-field-wide">
-                  <span class="field-label">Product description</span>
-                  <textarea id="productDescription" rows="3" placeholder="What Art Flaneur is, for whom, and what problem it solves."></textarea>
-                </label>
-                <label class="foundation-field foundation-field-wide">
-                  <span class="field-label">Mission</span>
-                  <textarea id="productMission" rows="2" placeholder="A concise mission marketers and AI can reuse."></textarea>
-                </label>
-                <label class="foundation-field foundation-field-wide">
-                  <span class="field-label">Value proposition</span>
-                  <textarea id="productValueProp" rows="2" placeholder="Why the product matters commercially and strategically."></textarea>
-                </label>
-                <label class="foundation-field">
-                  <span class="field-label">Golden Circle / Why</span>
-                  <textarea id="goldenCircleWhy" rows="3" placeholder="Why Art Flaneur exists."></textarea>
-                </label>
-                <label class="foundation-field">
-                  <span class="field-label">Golden Circle / How</span>
-                  <textarea id="goldenCircleHow" rows="3" placeholder="How Art Flaneur delivers value."></textarea>
-                </label>
-                <label class="foundation-field foundation-field-wide">
-                  <span class="field-label">Golden Circle / What</span>
-                  <textarea id="goldenCircleWhat" rows="2" placeholder="What Art Flaneur is in concrete terms."></textarea>
-                </label>
-                <label class="foundation-field foundation-field-wide">
-                  <span class="field-label">Proof points</span>
-                  <input id="productProofPoints" type="text" placeholder="Comma separated proof points, capabilities, or trust signals" />
-                </label>
-                <button class="cta-button foundation-save" type="submit">Save brand foundations</button>
-              </form>
-            </div>
             <div class="launchpad-block">
               <div class="launchpad-head">
                 <div>
@@ -160,6 +130,9 @@
               </div>
               <div id="workflowGuide" class="launchpad-grid"></div>
             </div>
+          </div>
+          <div class="overview-sidebar">
+            <div class="hero-grid" id="overviewMetrics"></div>
           </div>
         </section>
 
@@ -230,8 +203,8 @@
               <h3>Buyer's Journey Coverage</h3>
             </div>
             <p class="section-copy">
-              The dashboard now shows both buyer stage and inbound motion: Awareness / Attract, Consideration /
-              Engage, Decision / Delight.
+              HubSpot logic: build trust in awareness, compare options in consideration, and make action easy in
+              decision.
             </p>
           </div>
           <div id="journeyGrid" class="journey-grid"></div>
@@ -252,24 +225,17 @@
                         <ul class="help-list">
                           <li>Let AI draft the first cluster from persona pains, goals, and channels.</li>
                           <li>Keep manual edits for corrections, not for building the whole map from scratch.</li>
-                          <li>Keep one clear topic per cluster card; the list underneath is that topic's subtopic cluster.</li>
-                          <li>Subtopics should deepen the same topic across attract, engage, and delight angles when useful.</li>
-                          <li>A strong cluster creates one pillar topic and a clear CTA path into production.</li>
+                          <li>Subtopics should span awareness, comparison, and decision friction.</li>
+                          <li>A strong cluster creates one pillar idea and a clear CTA path into production.</li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 </div>
                 <p class="section-copy">
-                  Start from personas, then let AI propose the first topic map. In this dashboard a cluster means one
-                  top-level topic with a nested subtopic cluster beneath it.
+                  Start from personas, then let AI propose the first cluster map. Manual cluster editing stays
+                  available, but it is now a fallback instead of the starting point.
                 </p>
-              </div>
-              <div class="taxonomy-note">
-                <span class="taxonomy-pill">Topic</span>
-                <span class="taxonomy-arrow">→</span>
-                <span class="taxonomy-pill">Subtopic cluster</span>
-                <p class="helper-copy">Use one card per topic. Save related supporting angles as subtopics inside that card.</p>
               </div>
               <div class="input-panel">
                 <div>
@@ -282,7 +248,6 @@
                         <p class="help-title">When to use manual override</p>
                         <ul class="help-list">
                           <li>Use it to refine an AI draft or add a missing strategic cluster.</li>
-                          <li>The title field is the topic name. The comma-separated list below is its subtopic cluster.</li>
                           <li>Coverage score is directional, not precise reporting.</li>
                           <li>Keep the title tied to a user need, not an internal taxonomy label.</li>
                         </ul>
@@ -291,17 +256,16 @@
                   </div>
                 </div>
                 <form id="clusterForm" class="form-grid">
-                  <input type="text" name="title" placeholder="Topic title (cluster name)" required />
+                  <input type="text" name="title" placeholder="Cluster title" required />
                   <select id="clusterPersona" name="persona" aria-label="Cluster persona"></select>
                   <select name="intent" aria-label="Cluster stage">
-                    <option value="Awareness">Awareness / Attract</option>
-                    <option value="Consideration">Consideration / Engage</option>
-                    <option value="Decision">Decision / Delight</option>
+                    <option value="Awareness">Awareness</option>
+                    <option value="Consideration">Consideration</option>
+                    <option value="Decision">Decision</option>
                   </select>
                   <input type="text" name="score" placeholder="Coverage score, for example 55%" required />
-                  <input type="text" name="summary" placeholder="Why this topic cluster matters" required />
-                  <input type="text" name="subtopics" placeholder="Subtopics inside this topic cluster, comma separated" required />
-                  <textarea name="questions" rows="4" placeholder="Persona questions asked in AI chatbots, one question per line"></textarea>
+                  <input type="text" name="summary" placeholder="Why this cluster matters" required />
+                  <input type="text" name="subtopics" placeholder="Subtopics, comma separated" required />
                   <button class="cta-button" type="submit">Save cluster</button>
                 </form>
               </div>
@@ -358,9 +322,9 @@
                   <input type="text" name="title" placeholder="Working title" required />
                   <select name="persona" id="contentPersona" aria-label="Content persona"></select>
                   <select name="stage" aria-label="Content stage">
-                    <option value="Awareness">Awareness / Attract</option>
-                    <option value="Consideration">Consideration / Engage</option>
-                    <option value="Decision">Decision / Delight</option>
+                    <option value="Awareness">Awareness</option>
+                    <option value="Consideration">Consideration</option>
+                    <option value="Decision">Decision</option>
                   </select>
                   <select name="format" aria-label="Content format">
                     <option value="">Format — optional</option>
@@ -498,18 +462,15 @@
                 </div>
               </div>
               <p class="section-copy">
-                Use the model to refine personas, expand topic clusters, and draft content briefs in English. Prompt
-                Builder now follows the same stage aliases and topic-to-subtopic rules shown in the dashboard.
+                Use the model to refine personas, expand topic clusters, and draft content briefs in English.
               </p>
             </div>
             <div class="prompt-box">
               <div id="aiContextBar" class="ai-context-bar">
                 <span class="ai-context-label">Targeting:</span>
-                <select id="personaFilter" class="ai-context-select" aria-label="Filter by persona"></select>
+                <span id="aiContextPersona" class="ai-context-chip">All personas</span>
                 <span class="ai-context-sep">·</span>
-                <select id="stageFilter" class="ai-context-select" aria-label="Filter by buyer stage"></select>
-                <span id="aiFormatSep" class="ai-context-sep" hidden>·</span>
-                <select id="aiFormatSelect" class="ai-context-select" aria-label="Target content format" hidden></select>
+                <span id="aiContextStage" class="ai-context-chip">All stages</span>
                 <span class="ai-context-sep">·</span>
                 <span id="aiContextTask" class="ai-context-chip ai-context-task">—</span>
               </div>
@@ -541,13 +502,6 @@
               Pick one task based on what is blocked right now: audience clarity, topic gaps, or the next brief.
             </p>
             <div id="aiTaskList" class="stack-list"></div>
-          </div>
-          <div id="aiFormatPanel" class="mini-panel section-rail-panel" hidden>
-            <p class="eyebrow">Format Targets</p>
-            <p class="stack-copy">
-              Pick one format card, then run AI for that single format only.
-            </p>
-            <div id="aiFormatList" class="stack-list"></div>
           </div>
         </section>
 
@@ -614,9 +568,9 @@
             <label class="brief-meta-field">
               <span class="field-label">Stage</span>
               <select id="briefStage">
-                <option value="Awareness">Awareness / Attract</option>
-                <option value="Consideration">Consideration / Engage</option>
-                <option value="Decision">Decision / Delight</option>
+                <option value="Awareness">Awareness</option>
+                <option value="Consideration">Consideration</option>
+                <option value="Decision">Decision</option>
               </select>
             </label>
             <label class="brief-meta-field">
@@ -644,28 +598,10 @@
               <input type="date" id="briefPublishDate" />
             </label>
           </div>
-          <div class="brief-workspace">
-            <aside class="brief-guide-panel">
-              <article class="brief-guide-card">
-                <p class="eyebrow">Use This Brief</p>
-                <ol class="brief-guide-list">
-                  <li>Review the objective, angle, CTA, and guardrails before writing.</li>
-                  <li>Use AI Studio to turn this exact brief into a first draft for the selected format.</li>
-                  <li>Move the item to Draft only after the copy itself exists and has been edited.</li>
-                </ol>
-                <button class="cta-button brief-ai-button" id="openBriefInAi" type="button">Write draft in AI Studio</button>
-              </article>
-              <article class="brief-guide-card">
-                <p class="eyebrow">Quick View</p>
-                <div id="briefSummaryPanel" class="brief-summary-list"></div>
-              </article>
-            </aside>
-            <label class="brief-content-label">
-              <span class="field-label">Brief / Draft content</span>
-              <div id="briefChannelActions" class="brief-content-tools" hidden></div>
-              <textarea id="briefContentEditor" rows="20" placeholder="AI-generated brief will appear here after Apply. Edit, expand, or write from scratch."></textarea>
-            </label>
-          </div>
+          <label class="brief-content-label">
+            <span class="field-label">Brief / Draft content</span>
+            <textarea id="briefContentEditor" rows="20" placeholder="AI-generated brief will appear here after Apply. Edit, expand, or write from scratch."></textarea>
+          </label>
         </div>
         <div class="modal-footer">
           <button class="cta-button" id="saveBrief" type="button">Save changes</button>
@@ -689,17 +625,16 @@
         <div class="modal-body">
           <form id="editClusterForm" class="form-grid">
             <input type="hidden" id="editClusterKey" />
-            <input type="text" id="editClusterTitle" name="title" placeholder="Topic title (cluster name)" required />
+            <input type="text" id="editClusterTitle" name="title" placeholder="Cluster title" required />
             <select id="editClusterPersona" name="persona" aria-label="Cluster persona"></select>
             <select name="intent" id="editClusterIntent" aria-label="Cluster stage">
-              <option value="Awareness">Awareness / Attract</option>
-              <option value="Consideration">Consideration / Engage</option>
-              <option value="Decision">Decision / Delight</option>
+              <option value="Awareness">Awareness</option>
+              <option value="Consideration">Consideration</option>
+              <option value="Decision">Decision</option>
             </select>
             <input type="text" id="editClusterScore" name="score" placeholder="Coverage score, e.g. 8/10" required />
-            <input type="text" id="editClusterSummary" name="summary" placeholder="Why this topic cluster matters" required />
-            <input type="text" id="editClusterSubtopics" name="subtopics" placeholder="Subtopics inside this topic cluster, comma separated" required />
-            <textarea id="editClusterQuestions" name="questions" rows="4" placeholder="Persona questions asked in AI chatbots, one question per line"></textarea>
+            <input type="text" id="editClusterSummary" name="summary" placeholder="Why this cluster matters" required />
+            <input type="text" id="editClusterSubtopics" name="subtopics" placeholder="Subtopics, comma separated" required />
             <button class="cta-button" type="submit">Save cluster</button>
           </form>
         </div>
@@ -726,6 +661,29 @@
             <input type="text" id="editPersonaChannels" name="channels" placeholder="Channels, comma separated" required />
             <button class="cta-button" type="submit">Save changes</button>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="deletePersonaModal" class="modal-overlay" aria-modal="true" role="dialog" hidden>
+      <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">Delete Persona</p>
+            <h3 id="deletePersonaTitle">Reassign linked work first</h3>
+          </div>
+          <button class="ghost-button modal-close-btn" id="closeDeletePersonaModal" type="button">Close ×</button>
+        </div>
+        <div class="modal-body modal-stack">
+          <p id="deletePersonaMessage" class="modal-copy"></p>
+          <label id="deletePersonaReassignField" class="brief-meta-field" hidden>
+            <span class="field-label">Move linked clusters and content to</span>
+            <select id="deletePersonaReplacement" aria-label="Replacement persona"></select>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="cta-button" id="confirmDeletePersona" type="button">Delete persona</button>
+          <button class="ghost-button" id="cancelDeletePersona" type="button">Cancel</button>
         </div>
       </div>
     </div>
