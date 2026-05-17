@@ -127,6 +127,26 @@ const initialData = {
       channels: ["Instagram", "LinkedIn", "email newsletter", "PDF / slides"]
     },
     {
+      id: "museum-director",
+      name: "Museum Director",
+      role: "Director of a private museum, cultural foundation, or philanthropic art institution responsible for reputation, donor confidence, programming, and long-term institutional legacy.",
+      pains: [
+        "strong local credibility but weak international visibility",
+        "over-reliance on a narrow donor and board circle",
+        "no coherent external narrative across website, content, and institutional channels",
+        "digital and AI discoverability blindspots despite strong curatorial work",
+        "slow board-led decision cycles that make strategic change hard to execute"
+      ],
+      goals: [
+        "build international recognition beyond the local market",
+        "attract cultural tourists, collectors, and patrons from Asia, Europe, and Australia",
+        "strengthen digital discoverability without diluting curatorial voice",
+        "create a more sustainable revenue model beyond a narrow donor base",
+        "build an institutional legacy that outlasts current leadership"
+      ],
+      channels: ["LinkedIn", "Instagram", "email newsletter", "website article", "PDF / slides"]
+    },
+    {
       id: "cultural-tourist",
       name: "Cultural Tourist",
       role: "Art-loving traveler or local explorer looking for meaningful cultural experiences in a city",
@@ -233,6 +253,30 @@ const initialData = {
       subtopics: ["artwork pricing transparency", "collector follow-up process", "gallery CTA strategy", "purchase confidence builders", "exhibition closing techniques", "collector relationship onboarding"]
     },
     {
+      title: "International Visibility for Private Museums",
+      persona: "Museum Director",
+      intent: "Awareness",
+      score: "8/10",
+      summary: "Frames the visibility gap for respected private museums and foundations that are credible locally but largely invisible to international audiences, cultural tourists, and collector networks.",
+      subtopics: ["private museum visibility", "international recognition for museums", "cultural tourism discoverability", "museum reputation beyond local market", "legacy institutions and public visibility", "art foundation audience growth"]
+    },
+    {
+      title: "Strategic Visibility Infrastructure for Cultural Institutions",
+      persona: "Museum Director",
+      intent: "Consideration",
+      score: "8/10",
+      summary: "Helps museum directors compare approaches for discoverability, institutional narrative, and partner selection without defaulting to generic agencies or disconnected PR activity.",
+      subtopics: ["museum digital strategy", "institutional narrative design", "board-safe cultural marketing", "museum discoverability strategy", "PR agency vs strategic partner for museums", "AI visibility for cultural institutions"]
+    },
+    {
+      title: "Board-Ready Audit for Museum Visibility",
+      persona: "Museum Director",
+      intent: "Decision",
+      score: "9/10",
+      summary: "Moves private museum and foundation directors toward a low-risk first engagement by giving them a board-ready rationale for a strategic audit, workshop, or visibility roadmap.",
+      subtopics: ["museum visibility audit", "board presentation for cultural strategy", "private museum growth workshop", "institutional discoverability roadmap", "museum strategy retainer", "cultural foundation advisory engagement"]
+    },
+    {
       title: "Cultural City Guides",
       persona: "Cultural Tourist",
       intent: "Awareness",
@@ -258,10 +302,43 @@ const initialData = {
     }
   ],
   pipeline: {
-    Idea: [],
-    Brief: [],
+    Idea: [
+      {
+        id: "museum-director-visibility-idea",
+        title: "Why Private Museums Stay Invisible Beyond Their Local Reputation",
+        persona: "Museum Director",
+        stage: "Awareness",
+        format: "LinkedIn thought-leadership post (300–500 words)",
+        channel: "LinkedIn",
+        publishDate: "",
+        briefContent: "Name the real problem for private museums and cultural foundations: respected locally, but still absent from international discovery flows, collector conversations, and AI-led cultural search."
+      }
+    ],
+    Brief: [
+      {
+        id: "museum-director-strategy-brief",
+        title: "Strategic Visibility Infrastructure for Private Museums",
+        persona: "Museum Director",
+        stage: "Consideration",
+        format: "slide deck (10–15 slides)",
+        channel: "PDF / slides",
+        publishDate: "",
+        briefContent: "Outline a board-safe framework that compares PR, generic digital marketing, and strategic visibility infrastructure for institutions that need legacy, donor confidence, and international reach."
+      }
+    ],
     Draft: [],
-    Review: [],
+    Review: [
+      {
+        id: "museum-director-board-review",
+        title: "Board-Ready Case for a Museum Visibility Audit",
+        persona: "Museum Director",
+        stage: "Decision",
+        format: "downloadable guide or e-book (1500–3000 words)",
+        channel: "PDF / slides",
+        publishDate: "",
+        briefContent: "Build a one-page strategic rationale plus supporting notes that help a museum director explain why a workshop or audit is a low-risk first step for international visibility and institutional legacy."
+      }
+    ],
     Published: []
   },
   channels: [],
@@ -566,6 +643,8 @@ function isDemoPipeline(pipeline) {
 
 function migratePrototypeState(data) {
   const nextData = { ...data };
+  const legacyMuseumName = "Marina Museum";
+  const nextMuseumName = "Museum Director";
 
   if (matchesExactSet(nextData.personas, DEMO_PERSONA_NAMES, (persona) => persona.name)) {
     nextData.personas = clone(initialData.personas);
@@ -582,6 +661,35 @@ function migratePrototypeState(data) {
   if (matchesExactSet(nextData.calendar, DEMO_CALENDAR_TITLES, (entry) => entry.title)) {
     nextData.calendar = [];
   }
+
+  nextData.personas = (nextData.personas || []).map((persona) => {
+    if (persona.name !== legacyMuseumName && persona.id !== "marina-museum") {
+      return persona;
+    }
+
+    return {
+      ...persona,
+      id: "museum-director",
+      name: nextMuseumName
+    };
+  });
+
+  nextData.clusters = (nextData.clusters || []).map((cluster) => (
+    cluster.persona === legacyMuseumName
+      ? { ...cluster, persona: nextMuseumName }
+      : cluster
+  ));
+
+  nextData.pipeline = Object.fromEntries(
+    Object.entries(nextData.pipeline || {}).map(([status, items]) => [
+      status,
+      (items || []).map((item) => (
+        item.persona === legacyMuseumName
+          ? { ...item, persona: nextMuseumName }
+          : item
+      ))
+    ])
+  );
 
   return nextData;
 }
@@ -1922,7 +2030,7 @@ function renderPersonas() {
                   <button class="ghost-button card-action" type="button" data-edit-persona="${persona.id}">
                     Edit
                   </button>
-                  <button class="ghost-button card-action" type="button" data-delete-persona="${persona.id}">
+                  <button class="ghost-button card-action card-action--wide" type="button" data-delete-persona="${persona.id}">
                     Reassign / delete
                   </button>
                 </div>

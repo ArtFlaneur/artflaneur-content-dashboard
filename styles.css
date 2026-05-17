@@ -195,6 +195,8 @@ textarea {
 .sidebar-nav {
   display: grid;
   gap: 10px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .nav-link,
@@ -1143,12 +1145,14 @@ textarea {
 .pipeline-stack {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .pipeline-card,
 .calendar-item,
 .stack-item {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
 }
@@ -1159,6 +1163,8 @@ textarea {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 10px 24px rgba(16, 43, 37, 0.05);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .two-column {
@@ -1684,7 +1690,9 @@ textarea {
 }
 
 .format-tag {
-  display: inline-block;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
   padding: 2px 9px;
   font-size: 0.72rem;
   font-weight: 500;
@@ -1692,6 +1700,8 @@ textarea {
   background: rgba(199, 101, 58, 0.1);
   color: var(--accent);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .format-tag--filled {
@@ -1757,6 +1767,30 @@ textarea {
 
 .card-actions-pair .card-action {
   flex: 1 1 120px;
+}
+
+.persona-card .card-head-split {
+  display: grid;
+  gap: 12px;
+  justify-content: stretch;
+}
+
+.persona-card .card-actions-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  min-width: 0;
+  justify-content: stretch;
+}
+
+.persona-card .card-actions-pair .card-action {
+  min-width: 0;
+  width: 100%;
+  padding-inline: 12px;
+}
+
+.persona-card .card-actions-pair .card-action--wide {
+  grid-column: 1 / -1;
 }
 
 /* ─── Calendar item with remove button ───────────────────── */
