@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 // Load .env file if present (no external dependencies needed)
 (function loadEnv() {
@@ -44,46 +45,6 @@ function normalizeEndpoint(value) {
   return value ? value.replace(/\/+$/, "") : "";
 }
 
-function extractText(payload) {
-  if (!payload || typeof payload !== "object") {
-    return "";
-  }
-
-  if (Array.isArray(payload.output_text) && payload.output_text.length > 0) {
-    return payload.output_text.join("\n");
-  }
-
-  if (typeof payload.output_text === "string" && payload.output_text.trim()) {
-    return payload.output_text;
-  }
-
-  if (Array.isArray(payload.output)) {
-    const chunks = payload.output
-      .flatMap((item) => item.content || [])
-      .map((item) => item.text || item.output_text || "")
-      .filter(Boolean);
-
-    if (chunks.length > 0) {
-      return chunks.join("\n\n");
-    }
-  }
-
-  const chatContent = payload.choices?.[0]?.message?.content;
-
-  if (typeof chatContent === "string") {
-    return chatContent;
-  }
-
-  if (Array.isArray(chatContent)) {
-    return chatContent
-      .map((item) => (typeof item === "string" ? item : item.text || ""))
-      .filter(Boolean)
-      .join("\n\n");
-  }
-
-  return "";
-}
-
 async function readRequestBody(request) {
   const chunks = [];
 
@@ -95,24 +56,163 @@ async function readRequestBody(request) {
   return raw ? JSON.parse(raw) : {};
 }
 
-function getAzureConfig() {
-  const endpoint = normalizeEndpoint(process.env.AZURE_OPENAI_ENDPOINT);
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const model = process.env.AZURE_OPENAI_MODEL;
-  const apiVersion = process.env.AZURE_OPENAI_VERSION || "2025-03-01-preview";
+function getBedrockConfig() {
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.AWS_SESSION_TOKEN || "";
+  const modelId = process.env.BEDROCK_MODEL_ID || "us.anthropic.claude-sonnet-4-5-20250929-v1:0";
+  const maxTokens = Number(process.env.BEDROCK_MAX_TOKENS || 8000);
 
-  if (!endpoint || !apiKey || !model) {
+  if (!accessKeyId || !secretAccessKey) {
     return null;
   }
 
-  return { endpoint, apiKey, model, apiVersion };
+  return { region, accessKeyId, secretAccessKey, sessionToken, modelId, maxTokens };
 }
 
-async function callAzureWithFallback(prompt) {
-  const config = getAzureConfig();
+// --- AWS SigV4 signing (no external dependencies) ---
+function sha256Hex(data) {
+  return crypto.createHash("sha256").update(data, "utf8").digest("hex");
+}
+
+function hmac(key, data) {
+  return crypto.createHmac("sha256", key).update(data, "utf8").digest();
+}
+
+function getSignatureKey(secretKey, dateStamp, region, service) {
+  const kDate = hmac(`AWS4${secretKey}`, dateStamp);
+  const kRegion = hmac(kDate, region);
+  const kService = hmac(kRegion, service);
+  return hmac(kService, "aws4_request");
+}
+
+function signedBedrockRequest(config, host, canonicalUri, bodyString) {
+  const service = "bedrock";
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, ""); // YYYYMMDDTHHMMSSZ
+  const dateStamp = amzDate.slice(0, 8);
+
+  const payloadHash = sha256Hex(bodyString);
+  const canonicalHeaders =
+    `content-type:application/json\n` +
+    `host:${host}\n` +
+    `x-amz-content-sha256:${payloadHash}\n` +
+    `x-amz-date:${amzDate}\n` +
+    (config.sessionToken ? `x-amz-security-token:${config.sessionToken}\n` : "");
+  const signedHeaders = config.sessionToken
+    ? "content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token"
+    : "content-type;host;x-amz-content-sha256;x-amz-date";
+
+  const canonicalRequest = [
+    "POST",
+    canonicalUri,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash
+  ].join("\n");
+
+  const credentialScope = `${dateStamp}/${config.region}/${service}/aws4_request`;
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest)
+  ].join("\n");
+
+  const signingKey = getSignatureKey(config.secretAccessKey, dateStamp, config.region, service);
+  const signature = crypto.createHmac("sha256", signingKey).update(stringToSign, "utf8").digest("hex");
+
+  const authorization =
+    `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, ` +
+    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    Host: host,
+    "X-Amz-Content-Sha256": payloadHash,
+    "X-Amz-Date": amzDate,
+    Authorization: authorization
+  };
+  if (config.sessionToken) {
+    headers["X-Amz-Security-Token"] = config.sessionToken;
+  }
+
+  return headers;
+}
+
+function extractBedrockText(payload, modelId) {
+  if (!payload || typeof payload !== "object") return "";
+
+  // Anthropic Claude (Messages API on Bedrock)
+  if (Array.isArray(payload.content)) {
+    return payload.content
+      .map((block) => (typeof block === "string" ? block : block.text || ""))
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  // Amazon Nova / Titan-style
+  const novaText = payload.output?.message?.content
+    ?.map((block) => block.text || "")
+    .filter(Boolean)
+    .join("\n");
+  if (novaText) return novaText;
+
+  if (Array.isArray(payload.results)) {
+    return payload.results.map((r) => r.outputText || "").filter(Boolean).join("\n");
+  }
+
+  // Meta Llama
+  if (typeof payload.generation === "string") {
+    return payload.generation;
+  }
+
+  return "";
+}
+
+function buildBedrockBody(modelId, systemMessage, prompt, maxTokens) {
+  const id = modelId.toLowerCase();
+
+  if (id.includes("anthropic") || id.includes("claude")) {
+    return {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      system: systemMessage,
+      messages: [{ role: "user", content: [{ type: "text", text: prompt }] }]
+    };
+  }
+
+  if (id.includes("nova")) {
+    return {
+      system: [{ text: systemMessage }],
+      messages: [{ role: "user", content: [{ text: prompt }] }],
+      inferenceConfig: { maxTokens, temperature: 0.7 }
+    };
+  }
+
+  if (id.includes("llama")) {
+    return {
+      prompt: `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n${systemMessage}<|eot_id|><|start_header_id|>user<|end_header_id|>\n${prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n`,
+      max_gen_len: Math.min(maxTokens, 2048),
+      temperature: 0.7
+    };
+  }
+
+  // Amazon Titan text fallback
+  return {
+    inputText: `${systemMessage}\n\n${prompt}`,
+    textGenerationConfig: { maxTokenCount: maxTokens, temperature: 0.7 }
+  };
+}
+
+async function callBedrock(prompt) {
+  const config = getBedrockConfig();
 
   if (!config) {
-    throw new Error("Azure OpenAI environment variables are missing on the local server.");
+    throw new Error("AWS credentials are missing on the local server (set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).");
   }
 
   const systemMessage = [
@@ -123,73 +223,38 @@ async function callAzureWithFallback(prompt) {
     "Prefer concise sections and actionable recommendations."
   ].join(" ");
 
-  const attempts = [
-    {
-      label: "chat-completions",
-      url: `${config.endpoint}/openai/deployments/${encodeURIComponent(config.model)}/chat/completions?api-version=${encodeURIComponent(config.apiVersion)}`,
-      body: {
-        messages: [
-          { role: "system", content: systemMessage },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.7,
-        max_completion_tokens: 16000
-      }
-    },
-    {
-      label: "responses-preview",
-      url: `${config.endpoint}/openai/responses?api-version=${encodeURIComponent(config.apiVersion)}`,
-      body: {
-        model: config.model,
-        input: [
-          {
-            role: "system",
-            content: [{ type: "input_text", text: systemMessage }]
-          },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: prompt }]
-          }
-        ],
-        max_output_tokens: 16000,
-        temperature: 0.7
-      }
-    }
-  ];
+  const host = `bedrock-runtime.${config.region}.amazonaws.com`;
+  const encodedModelId = encodeURIComponent(config.modelId);
+  // Actual request path (single-encoded, e.g. ...v2%3A0)
+  const requestUri = `/model/${encodedModelId}/invoke`;
+  // Canonical URI for SigV4 must URI-encode the path again (e.g. %3A -> %253A)
+  const canonicalUri = `/model/${encodeURIComponent(encodedModelId)}/invoke`;
+  const url = `https://${host}${requestUri}`;
 
-  let lastError = null;
+  const bodyObject = buildBedrockBody(config.modelId, systemMessage, prompt, config.maxTokens);
+  const bodyString = JSON.stringify(bodyObject);
 
-  for (const attempt of attempts) {
-    const response = await fetch(attempt.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": config.apiKey
-      },
-      body: JSON.stringify(attempt.body)
-    });
+  const headers = signedBedrockRequest(config, host, canonicalUri, bodyString);
 
-    if (response.ok) {
-      const payload = await response.json();
-      const text = extractText(payload);
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: bodyString
+  });
 
-      if (!text) {
-        lastError = new Error(`Azure returned no readable text for ${attempt.label}.`);
-        continue;
-      }
-
-      return { text, providerMode: attempt.label };
-    }
-
+  if (!response.ok) {
     const errorText = await response.text();
-    lastError = new Error(`Azure ${attempt.label} failed with ${response.status}: ${errorText}`);
-
-    if (![400, 404].includes(response.status)) {
-      break;
-    }
+    throw new Error(`AWS Bedrock invoke failed with ${response.status}: ${errorText}`);
   }
 
-  throw lastError || new Error("Azure OpenAI request failed.");
+  const payload = await response.json();
+  const text = extractBedrockText(payload, config.modelId);
+
+  if (!text) {
+    throw new Error("AWS Bedrock returned no readable text.");
+  }
+
+  return { text, providerMode: `bedrock:${config.modelId}` };
 }
 
 async function serveStatic(request, response) {
@@ -252,7 +317,7 @@ const server = http.createServer(async (request, response) => {
         return;
       }
 
-      const result = await callAzureWithFallback(prompt);
+      const result = await callBedrock(prompt);
       sendJson(response, 200, result);
     } catch (error) {
       sendJson(response, 500, { error: error.message || "Unknown server error." });

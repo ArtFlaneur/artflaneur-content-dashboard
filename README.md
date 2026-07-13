@@ -15,7 +15,7 @@ A local-first editorial operations platform for **Art Flaneur**, a contemporary 
 | **Content Pipeline** | Kanban-style pipeline (Idea → Brief → Draft → Review → Published) with a full Brief Editor modal |
 | **Publishing Calendar** | Schedule published pieces by date and channel; sorted chronologically |
 | **Channels** | Track follower counts over time across Instagram, YouTube, LinkedIn, TikTok, Newsletter, and more; YouTube subscriber count can be auto-fetched via Google API |
-| **AI Studio** | Prompt builder backed by Azure OpenAI — generates strategy plans, persona deep-dives, cluster gap analyses, content briefs, and full drafts |
+| **AI Studio** | Prompt builder backed by AWS Bedrock — generates strategy plans, persona deep-dives, cluster gap analyses, content briefs, and full drafts |
 | **Playbook** | Running editorial strategy roadmap |
 
 ---
@@ -24,7 +24,7 @@ A local-first editorial operations platform for **Art Flaneur**, a contemporary 
 
 - **Frontend** — Vanilla HTML / CSS / JavaScript, no framework, no build step
 - **Backend** — Node.js HTTP server (`server.js`), zero dependencies
-- **AI** — Azure OpenAI (GPT) proxied through the local server
+- **AI** — AWS Bedrock (Anthropic Claude by default) proxied through the local server
 - **State** — `localStorage` (browser-persisted, private)
 
 ---
@@ -33,7 +33,7 @@ A local-first editorial operations platform for **Art Flaneur**, a contemporary 
 
 - [Node.js](https://nodejs.org/) 18 or later
 - (Optional) A [Google Cloud API key](https://console.cloud.google.com/) with **YouTube Data API v3** enabled — for auto-fetching subscriber counts
-- (Optional) Azure OpenAI credentials — for the AI Studio features
+- (Optional) AWS credentials with Amazon Bedrock model access — for the AI Studio features
 
 ---
 
@@ -49,14 +49,20 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Environment variables (optional)
 
-Set these before `npm start` to enable Azure OpenAI and YouTube auto-fetch:
+Set these before `npm start` (or put them in a `.env` file) to enable AWS Bedrock and YouTube auto-fetch:
 
 ```bash
-export AZURE_OPENAI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
-export AZURE_OPENAI_API_KEY=your_key_here
-export AZURE_OPENAI_MODEL=gpt-4o
-export AZURE_OPENAI_VERSION=2024-12-01-preview
+export AWS_ACCESS_KEY_ID=your_access_key_id
+export AWS_SECRET_ACCESS_KEY=your_secret_access_key
+export AWS_REGION=us-east-1
+# Optional — defaults shown
+export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
+export BEDROCK_MAX_TOKENS=8000
+# Optional — only when using temporary STS credentials
+export AWS_SESSION_TOKEN=your_session_token
 ```
+
+> The AWS identity must have `bedrock:InvokeModel` permission and model access enabled for the chosen model ID in the target region (Bedrock → Model access).
 
 YouTube API keys are entered per-channel directly in the Channels section of the UI — no environment variable needed.
 
@@ -69,7 +75,7 @@ YouTube API keys are entered per-channel directly in the Channels section of the
 ├── index.html      # Full dashboard markup and information architecture
 ├── app.js          # Application state, rendering, CRUD, AI prompting (~2100 lines)
 ├── styles.css      # Complete visual system (~1600 lines)
-├── server.js       # Static file server + Azure OpenAI proxy + YouTube stats proxy
+├── server.js       # Static file server + AWS Bedrock proxy + YouTube stats proxy
 └── package.json
 ```
 
