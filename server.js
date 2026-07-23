@@ -45,10 +45,17 @@ function normalizeEndpoint(value) {
   return value ? value.replace(/\/+$/, "") : "";
 }
 
+const MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB cap protects data.json and localStorage from runaway payloads
+
 async function readRequestBody(request) {
   const chunks = [];
+  let total = 0;
 
   for await (const chunk of request) {
+    total += chunk.length;
+    if (total > MAX_BODY_BYTES) {
+      throw new Error(`Request body exceeds the ${Math.round(MAX_BODY_BYTES / (1024 * 1024))} MB limit.`);
+    }
     chunks.push(chunk);
   }
 
@@ -69,6 +76,16 @@ function getBedrockConfig() {
   }
 
   return { region, accessKeyId, secretAccessKey, sessionToken, modelId, maxTokens };
+}
+
+function getBedrockImageConfig() {
+  const config = getBedrockConfig();
+  if (!config) return null;
+
+  return {
+    ...config,
+    imageModelId: process.env.BEDROCK_IMAGE_MODEL_ID || ""
+  };
 }
 
 // --- AWS SigV4 signing (no external dependencies) ---
@@ -208,6 +225,31 @@ function buildBedrockBody(modelId, systemMessage, prompt, maxTokens) {
   };
 }
 
+function buildBedrockImageBody(modelId, prompt) {
+  const id = modelId.toLowerCase();
+
+  if (id.includes("stable-image")) {
+    return {
+      prompt,
+      negative_prompt: "text, captions, logo, watermark, readable words, influencer lifestyle photography, luxury advertising, crowds, distorted hands",
+      aspect_ratio: "16:9",
+      output_format: "png"
+    };
+  }
+
+  return {
+    taskType: "TEXT_IMAGE",
+    textToImageParams: { text: prompt },
+    imageGenerationConfig: {
+      numberOfImages: 1,
+      height: 768,
+      width: 1024,
+      cfgScale: 6.5,
+      seed: Math.floor(Math.random() * 858993459)
+    }
+  };
+}
+
 async function callBedrock(prompt) {
   const config = getBedrockConfig();
 
@@ -217,7 +259,7 @@ async function callBedrock(prompt) {
 
   const systemMessage = [
     "You are a senior inbound content strategist for Art Flaneur.",
-    "Respond in English.",
+    "Respond in the language explicitly requested by the task prompt; use English only when no language is specified.",
     "Use HubSpot-style inbound methodology.",
     "Be concrete, structured, and practical for an early-stage content marketing operator.",
     "Prefer concise sections and actionable recommendations."
@@ -255,6 +297,58 @@ async function callBedrock(prompt) {
   }
 
   return { text, providerMode: `bedrock:${config.modelId}` };
+}
+
+async function callBedrockStoryboardImage(scenario) {
+  const config = getBedrockImageConfig();
+  if (!config) {
+    throw new Error("AWS credentials are missing on the local server (set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).");
+  }
+  if (!config.imageModelId) {
+    throw new Error("Storyboard generation needs BEDROCK_IMAGE_MODEL_ID set to an active text-to-image model enabled for this AWS account and region.");
+  }
+
+  const source = String(scenario || "").trim().slice(0, 6000);
+  if (!source) {
+    throw new Error("A Reels scenario is required to generate a storyboard image.");
+  }
+
+  const prompt = [
+    "Create a single six-panel editorial storyboard contact sheet for a 25–35 second cultural Instagram Reel.",
+    "Use a clean 3 by 2 grid of distinct sequential camera shots. No captions, logos, readable text, watermarks, or brand marks.",
+    "Show only shootable visual references: framing, objects, light, movement, and transitions. Preserve ambiguity; do not invent identifiable venues, artworks, publications, or real people.",
+    "The visual language is quiet, observational, contemporary editorial photography: natural light, tactile paper, real objects, restrained colour, and no lifestyle influencer aesthetic.",
+    "Base the shot sequence only on this approved scenario:\n",
+    source
+  ].join("\n");
+
+  const host = `bedrock-runtime.${config.region}.amazonaws.com`;
+  const encodedModelId = encodeURIComponent(config.imageModelId);
+  const requestUri = `/model/${encodedModelId}/invoke`;
+  const canonicalUri = `/model/${encodeURIComponent(encodedModelId)}/invoke`;
+  const bodyString = JSON.stringify(buildBedrockImageBody(config.imageModelId, prompt));
+
+  const response = await fetch(`https://${host}${requestUri}`, {
+    method: "POST",
+    headers: signedBedrockRequest(config, host, canonicalUri, bodyString),
+    body: bodyString
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`AWS Bedrock storyboard image failed with ${response.status}: ${errorText}`);
+  }
+
+  const payload = await response.json();
+  const image = payload.images?.[0];
+  if (!image) {
+    throw new Error("AWS Bedrock returned no storyboard image.");
+  }
+
+  return {
+    imageDataUrl: `data:image/png;base64,${image}`,
+    providerMode: `bedrock:${config.imageModelId}`
+  };
 }
 
 async function serveStatic(request, response) {
@@ -321,6 +415,17 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, result);
     } catch (error) {
       sendJson(response, 500, { error: error.message || "Unknown server error." });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/ai/storyboard-image") {
+    try {
+      const body = await readRequestBody(request);
+      const result = await callBedrockStoryboardImage(body.scenario);
+      sendJson(response, 200, result);
+    } catch (error) {
+      sendJson(response, 500, { error: error.message || "Storyboard image generation failed." });
     }
     return;
   }

@@ -453,16 +453,16 @@
                     <div class="help-tooltip" role="tooltip">
                       <p class="help-title">How to use AI</p>
                       <ul class="help-list">
-                        <li>First set persona and stage in the control panel.</li>
-                        <li>Then choose one AI task based on the decision you need next.</li>
-                        <li>Apply the result only if it improves a real cluster, persona, or brief.</li>
+                        <li>Set persona and stage, then pick the task for the decision you need next.</li>
+                        <li>Strategy, persona, cluster, and brief tasks can be applied to the dashboard.</li>
+                        <li>Reels and Red Team are editorial: route them through the short video workflow, not Apply.</li>
                       </ul>
                     </div>
                   </div>
                 </div>
               </div>
               <p class="section-copy">
-                Use the model to refine personas, expand topic clusters, and draft content briefs in English.
+                Plan strategy, expand personas, draft briefs, and run the editorial short-video workflow: scenario, Red Team review, approved script, storyboard, and pipeline handoff.
               </p>
             </div>
             <div class="prompt-box">
@@ -473,6 +473,21 @@
                 <span id="aiContextStage" class="ai-context-chip">All stages</span>
                 <span class="ai-context-sep">·</span>
                 <span id="aiContextTask" class="ai-context-chip ai-context-task">—</span>
+              </div>
+              <div id="reelsSourcePanel" class="reels-source-panel" hidden>
+                <label id="reelsSourceLabel" for="reelsSource">Материал для сценария</label>
+                <textarea id="reelsSource" rows="9" placeholder="/reels
+material:
+replica:
+proof:
+message:
+position:
+audience:
+tone_of_voice:
+lifestyle/context:
+anti_dna:
+discussion_mode:"></textarea>
+                <p id="reelsSourceHelp" class="helper-copy">Вставьте материал в любом объёме. Поля можно оставить пустыми: агент подготовит черновик и укажет максимум три детали, которые сильнее всего изменят сценарий.</p>
               </div>
               <label for="promptOutput">Recommended prompt</label>
               <textarea id="promptOutput" rows="10" readonly></textarea>
@@ -494,14 +509,44 @@
                   The latest structured AI result can update personas, clusters, or content items.
                 </p>
               </div>
+              <div id="videoWorkflowPanel" class="video-workflow-panel" hidden>
+                <div>
+                  <p class="eyebrow">Short video production</p>
+                  <h4 class="subheading">Route this scenario through review to a production item</h4>
+                  <p class="helper-copy">Editorial Reels do not enter the pipeline automatically. Move one selected version through Red Team, approval, storyboard, and scheduling so the produced video stays linked to its persona, stage, and cluster.</p>
+                </div>
+                <div class="video-workflow-actions">
+                  <button class="ghost-button" id="sendToRedTeam" type="button" disabled>Send scenario to Red Team</button>
+                  <button class="ghost-button" id="approveScript" type="button" disabled>Approve as production script</button>
+                  <button class="cta-button" id="createVideoItem" type="button" disabled>Create pipeline item</button>
+                </div>
+                <p id="videoWorkflowNote" class="helper-copy">Generate a Reels scenario or a Red Team revision, then move it forward.</p>
+              </div>
+              <div id="storyboardPanel" class="storyboard-panel" hidden>
+                <div>
+                  <p class="eyebrow">Storyboard visual plan</p>
+                  <h4 class="subheading">Six-frame shooting reference</h4>
+                  <p class="helper-copy">Generate one visual contact sheet from the approved production script. It is a planning reference, not a claim about a real place or person.</p>
+                </div>
+                <div class="storyboard-actions">
+                  <button class="ghost-button" id="generateStoryboard" type="button" disabled>Generate storyboard image</button>
+                  <span id="storyboardStatus" class="response-status">Approve a script first</span>
+                </div>
+                <img id="storyboardImage" class="storyboard-image" alt="Generated six-frame storyboard shooting reference" hidden />
+              </div>
             </div>
           </div>
           <div class="mini-panel section-rail-panel">
             <p class="eyebrow">Suggested AI tasks</p>
             <p class="stack-copy">
-              Pick one task based on what is blocked right now: audience clarity, topic gaps, or the next brief.
+              Pick one task based on what is blocked right now: audience clarity, topic gaps, the next brief, or a short-form video scenario.
             </p>
             <div id="aiTaskList" class="stack-list"></div>
+            <div class="video-asset-block">
+              <p class="eyebrow">Short video assets</p>
+              <p class="stack-copy">Editorial Reels in production, with their review and storyboard state.</p>
+              <div id="videoAssetList" class="video-asset-list"></div>
+            </div>
           </div>
         </section>
 

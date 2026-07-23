@@ -1,5 +1,8 @@
 const STORAGE_KEY = "art-flaneur-content-dashboard";
 const DATA_VERSION = 3; // bump to force-reset personas+clusters when structure changes
+// Canonical editorial short-form video spec — one source of truth for prompts, pipeline, and calendar.
+const EDITORIAL_REEL_FORMAT = "Instagram Reel — editorial short (25–35 sec)";
+const EDITORIAL_REEL_CHANNEL = "Instagram";
 const DEMO_PERSONA_NAMES = ["Independent Curator", "Emerging Collector", "Cultural Traveler"];
 const DEMO_CLUSTER_TITLES = [
   "Contemporary Art Discovery",
@@ -25,7 +28,7 @@ const STATUS_ORDER = ["Idea", "Brief", "Draft", "Review", "Published"];
 // Maps each distribution channel to the content formats that work best on it
 // Canonical channel keys — AI must use these exact strings when writing persona channels
 const CHANNEL_FORMAT_MAP = {
-  "Instagram":         ["Instagram carousel (10 slides)", "Instagram caption + visual hook", "Instagram Reel script (45–60 sec)"],
+  "Instagram":         ["Instagram carousel (10 slides)", "Instagram caption + visual hook", "Instagram Reel — editorial short (25–35 sec)"],
   "LinkedIn":          ["LinkedIn long-form article (800–1200 words)", "LinkedIn thought-leadership post (300–500 words)"],
   "YouTube":           ["YouTube video script (8–15 min)", "YouTube Shorts script (60–90 sec)"],
   "email newsletter":  ["nurture email (250–400 words)", "3-part email sequence"],
@@ -386,9 +389,20 @@ const initialData = {
       id: "full-draft",
       title: "Write full draft",
       body: "Turn a brief into publication-ready prose for the selected format."
+    },
+    {
+      id: "reels-script",
+      title: "Create Reels scenario",
+      body: "Turn source material into a 25–35 second editorial Reel for Eva Gorobets."
+    },
+    {
+      id: "red-team",
+      title: "Red Team a script",
+      body: "Stress-test a finished Reel for proof, editorial tension, and false positioning."
     }
   ],
-  aiHistory: []
+  aiHistory: [],
+  videoAssets: []
 };
 
 const personaFilter = document.querySelector("#personaFilter");
@@ -405,6 +419,7 @@ const calendarList = document.querySelector("#calendarList");
 const coverageList = document.querySelector("#coverageList");
 const learningGrid = document.querySelector("#learningGrid");
 const aiTaskList = document.querySelector("#aiTaskList");
+const videoAssetList = document.querySelector("#videoAssetList");
 const promptOutput = document.querySelector("#promptOutput");
 const aiContextPersona = document.querySelector("#aiContextPersona");
 const aiContextStage = document.querySelector("#aiContextStage");
@@ -414,6 +429,19 @@ const aiStatus = document.querySelector("#aiStatus");
 const runAiButton = document.querySelector("#runAi");
 const applyAiButton = document.querySelector("#applyAi");
 const applyAiNote = document.querySelector("#applyAiNote");
+const reelsSourcePanel = document.querySelector("#reelsSourcePanel");
+const reelsSourceLabel = document.querySelector("#reelsSourceLabel");
+const reelsSourceHelp = document.querySelector("#reelsSourceHelp");
+const reelsSource = document.querySelector("#reelsSource");
+const storyboardPanel = document.querySelector("#storyboardPanel");
+const generateStoryboardButton = document.querySelector("#generateStoryboard");
+const storyboardStatus = document.querySelector("#storyboardStatus");
+const storyboardImage = document.querySelector("#storyboardImage");
+const videoWorkflowPanel = document.querySelector("#videoWorkflowPanel");
+const videoWorkflowNote = document.querySelector("#videoWorkflowNote");
+const sendToRedTeamButton = document.querySelector("#sendToRedTeam");
+const approveScriptButton = document.querySelector("#approveScript");
+const createVideoItemButton = document.querySelector("#createVideoItem");
 
 const navStatusTargets = document.querySelectorAll("[data-status-for]");
 const weeklyFocus = document.querySelector("#weekly-focus");
@@ -482,6 +510,7 @@ const selectedFilters = {
 
 let activeAiTaskId = "strategy-plan";
 let latestAiRun = null;
+let activeVideoAssetId = null;
 let activeBriefEdit = null;
 let activeEditPersonaId = null;
 let activeDeletePersonaId = null;
@@ -622,6 +651,29 @@ function normalizeChannel(channel) {
   };
 }
 
+const VIDEO_STAGES = ["Scenario", "Red Team", "Approved", "Storyboard", "Scheduled", "Published"];
+
+function normalizeVideoAsset(asset) {
+  return {
+    id: asset?.id || generateId(),
+    title: String(asset?.title || "Untitled short video").trim(),
+    persona: String(asset?.persona || "").trim(),
+    stage: String(asset?.stage || "Awareness").trim(),
+    cluster: String(asset?.cluster || "").trim(),
+    format: EDITORIAL_REEL_FORMAT,
+    channel: EDITORIAL_REEL_CHANNEL,
+    status: VIDEO_STAGES.includes(asset?.status) ? asset.status : "Scenario",
+    sourceMaterial: String(asset?.sourceMaterial || "").trim(),
+    scenarioDraft: String(asset?.scenarioDraft || "").trim(),
+    redTeamReview: String(asset?.redTeamReview || "").trim(),
+    approvedScript: String(asset?.approvedScript || "").trim(),
+    storyboardImage: String(asset?.storyboardImage || ""),
+    pipelineItemId: asset?.pipelineItemId || "",
+    createdAt: asset?.createdAt || new Date().toISOString(),
+    updatedAt: asset?.updatedAt || new Date().toISOString()
+  };
+}
+
 function matchesExactSet(items, expected, getValue) {
   const actual = [...(items || [])].map(getValue).sort();
   const target = [...expected].sort();
@@ -729,6 +781,8 @@ function loadState() {
       calendar: (parsed.calendar || []).map(normalizeCalendarEntry)
     });
 
+    state.videoAssets = (parsed.videoAssets || []).map(normalizeVideoAsset);
+
     // Persist immediately after a version reset so it only happens once
     if (needsReset) {
       try {
@@ -798,6 +852,7 @@ async function initServerSync() {
       channels: (serverData.channels || []).map(normalizeChannel),
       calendar: (serverData.calendar || []).map(normalizeCalendarEntry)
     });
+    dashboardData.videoAssets = (serverData.videoAssets || []).map(normalizeVideoAsset);
     // Sync localStorage to match server
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...dashboardData, dataVersion: DATA_VERSION }));
@@ -950,9 +1005,102 @@ function syncTextPanels() {
 function updateApplyState() {
   const canApply = Boolean(latestAiRun?.appData);
   applyAiButton.disabled = !canApply;
+  if (["reels-script", "red-team"].includes(latestAiRun?.taskId)) {
+    applyAiNote.textContent = latestAiRun.taskId === "red-team"
+      ? "Red Team reviews stay in the response. Approve a revision below to lock the production script."
+      : "Reels scenarios stay in the response. Use the short video workflow below to review, approve, and schedule.";
+    return;
+  }
   applyAiNote.textContent = canApply
     ? `Ready to apply “${latestAiRun.title}” to the dashboard.`
     : "Run an AI task first — the button enables after the model returns a structured result.";
+}
+
+function getActiveVideoAsset() {
+  return (dashboardData.videoAssets || []).find((asset) => asset.id === activeVideoAssetId) || null;
+}
+
+function touchVideoAsset(asset, patch) {
+  Object.assign(asset, patch, { updatedAt: new Date().toISOString() });
+  saveState();
+}
+
+// Build a short human title from the scenario text: prefer a titled hook line, else the first sentence.
+function deriveVideoTitle(text) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "Untitled short video";
+  const titled = clean.match(/(?:титр|title|хук|hook)[^:]*:\s*([^.\n]{6,80})/i);
+  const candidate = (titled?.[1] || clean.split(/[.\n]/)[0] || clean)
+    .replace(/[*#>`_]+/g, "")
+    .replace(/^[\s\-–—:]+/, "")
+    .trim();
+  return candidate.slice(0, 80) || "Untitled short video";
+}
+
+function updateStoryboardState() {
+  const asset = getActiveVideoAsset();
+  const isVideoTask = ["reels-script", "red-team"].includes(getActiveAiTask()?.id);
+  const canGenerate = Boolean(asset?.approvedScript);
+
+  if (storyboardPanel) storyboardPanel.hidden = !isVideoTask;
+  if (generateStoryboardButton) generateStoryboardButton.disabled = !canGenerate;
+
+  if (storyboardImage) {
+    if (asset?.storyboardImage) {
+      storyboardImage.src = asset.storyboardImage;
+      storyboardImage.hidden = false;
+    } else {
+      storyboardImage.hidden = true;
+      storyboardImage.removeAttribute("src");
+    }
+  }
+
+  if (!storyboardStatus) return;
+  if (!canGenerate) {
+    storyboardStatus.textContent = "Approve a script first";
+  } else if (asset?.storyboardImage) {
+    storyboardStatus.textContent = "Storyboard ready";
+  } else {
+    storyboardStatus.textContent = "Ready to generate from approved script";
+  }
+}
+
+function updateVideoWorkflowState() {
+  const task = getActiveAiTask();
+  const isReels = task?.id === "reels-script";
+  const isRedTeam = task?.id === "red-team";
+  const isVideoTask = isReels || isRedTeam;
+  const asset = getActiveVideoAsset();
+
+  if (videoWorkflowPanel) videoWorkflowPanel.hidden = !isVideoTask;
+  if (!isVideoTask) return;
+
+  const hasScenarioRun = latestAiRun?.taskId === "reels-script" && Boolean(latestAiRun.displayText);
+  const hasRedTeamRun = latestAiRun?.taskId === "red-team" && Boolean(latestAiRun.displayText);
+  // A saved asset can also be advanced without a fresh run in this session.
+  const assetScript = asset?.redTeamReview || asset?.scenarioDraft || "";
+
+  if (sendToRedTeamButton) sendToRedTeamButton.disabled = !(isReels && hasScenarioRun);
+  if (approveScriptButton) {
+    approveScriptButton.disabled = !(hasScenarioRun || hasRedTeamRun || assetScript);
+  }
+  if (createVideoItemButton) {
+    createVideoItemButton.disabled = !(asset && asset.approvedScript && !asset.pipelineItemId);
+  }
+
+  if (videoWorkflowNote) {
+    if (asset?.pipelineItemId) {
+      videoWorkflowNote.textContent = `“${asset.title}” is linked to a pipeline item (${asset.status}).`;
+    } else if (asset?.approvedScript) {
+      videoWorkflowNote.textContent = "Script approved. Generate a storyboard, then create the pipeline item.";
+    } else if (isRedTeam && hasRedTeamRun) {
+      videoWorkflowNote.textContent = "Approve the Red Team revision to lock the production script.";
+    } else if (isReels && hasScenarioRun) {
+      videoWorkflowNote.textContent = "Send this scenario to Red Team, or approve it directly as the production script.";
+    } else {
+      videoWorkflowNote.textContent = "Generate a Reels scenario or a Red Team revision, then move it forward.";
+    }
+  }
 }
 
 function saveAiHistoryEntry(entry) {
@@ -2312,6 +2460,26 @@ function buildPrompt() {
   const formatsText = getPersonaFormatsText(personaChannels);
   const formatPairs = getPersonaFormatPairs(personaChannels);
   const stageGuidance = STAGE_FORMAT_GUIDANCE[stage] || STAGE_FORMAT_GUIDANCE["Awareness"];
+  const isReelsScriptTask = task?.id === "reels-script";
+  const isRedTeamTask = task?.id === "red-team";
+  const usesReelsSource = isReelsScriptTask || isRedTeamTask;
+
+  if (reelsSourcePanel) {
+    reelsSourcePanel.hidden = !usesReelsSource;
+  }
+  if (reelsSourceLabel) {
+    reelsSourceLabel.textContent = isRedTeamTask ? "Готовый сценарий для Red Team" : "Материал для сценария";
+  }
+  if (reelsSourceHelp) {
+    reelsSourceHelp.textContent = isRedTeamTask
+      ? "Вставьте готовый сценарий целиком. Агент сначала проведёт редакционный разбор, затем предложит только одну улучшенную версию."
+      : "Вставьте материал в любом объёме. Поля можно оставить пустыми: агент подготовит черновик и укажет максимум три детали, которые сильнее всего изменят сценарий.";
+  }
+  if (reelsSource) {
+    reelsSource.placeholder = isRedTeamTask
+      ? "Вставьте готовый текст сценария: титр-хук, тайминг по секундам, voiceover, visual proof, финальный вопрос."
+      : "/reels\nmaterial:\nreplica:\nproof:\nmessage:\nposition:\naudience:\ntone_of_voice:\nlifestyle/context:\nanti_dna:\ndiscussion_mode:";
+  }
 
   let promptLines = [];
 
@@ -2454,7 +2622,7 @@ function buildPrompt() {
       "For EACH format in the list above, write a complete, publication-ready draft. Apply the correct structural rules per format:",
       "  - Instagram carousel (10 slides): Slide 1 = hook/title, Slides 2–9 = one point each (max 30 words), Slide 10 = CTA.",
       "  - Instagram caption: strong first line, body 150–220 words, 3–5 hashtags.",
-      "  - Instagram Reel / TikTok script: hook (first 3 sec), 3 points (10–15 sec each), close with CTA. 60–90 sec total.",
+      "  - Instagram Reel — editorial short: title hook (first 1.5–2 sec), timed beats 0–32 sec, voiceover up to 75 words, one open cultural question. 25–35 sec total.",
       "  - LinkedIn long-form article: introduction, 4–6 section headings, 900–1200 words, CTA at end.",
       "  - LinkedIn post: strong opener, short paragraphs, 300–500 words, closing question or CTA.",
       "  - Nurture email: subject line, preheader, greeting, hook, 2–3 body paragraphs, CTA button label, sign-off.",
@@ -2468,8 +2636,51 @@ function buildPrompt() {
     runAiButton.textContent = "Run full drafts";
   }
 
+  if (isReelsScriptTask) {
+    const sourceMaterial = reelsSource?.value.trim();
+    promptLines = [
+      "Ты — сценарный редактор коротких видео для Eva Gorobets, founder Art Flaneur.",
+      "Отвечай по-русски. Английский допустим только для короткого title hook, когда он точнее для международной аудитории.",
+      "Превращай предоставленный материал в точные, визуально реализуемые сценарии Instagram Reels длительностью 25–35 секунд. Работай как редактор: находи конфликт, авторскую позицию, сильное наблюдение, конкретный visual proof и открытый вопрос.",
+      "Контекст автора: Eva — cultural strategist, researcher, former photographer и founder Art Flaneur. Она строит trusted international cultural layer и будущий частный культурный круг для людей с культурным капиталом, амбицией и вкусом. Она не учит хорошему вкусу: она предлагает интеллектуальную оптику, отбирает, связывает и создаёт ситуации для культурного разговора.",
+      "Ключевые темы: культура как опыт, а не коллекция событий; доступ не равен близости; вкус как практика внимания, а не статус; art, film, books, craft и города как связанные формы жизни; культурная среда без упрощения мысли; право жить красиво и быть видимой; founder journey как создание инфраструктуры, а не личного блога.",
+      "Аудитория: культурные профессионалы, designers, founders, researchers, architects, photographers, curators, collectors и creative/tech leaders 28–55 лет из Melbourne, Tokyo, London, Berlin и других международных городов. У них есть культурный капитал и ограниченное внимание. Не объясняй им базовые вещи, не обещай трансформацию, исцеление, продуктивность или новый уровень себя.",
+      "ЗАПРЕЩЕНО: ‘ты заслуживаешь’, ‘просто начни’, ‘лучше, чем терапия’, ‘манифест замедления’, формулы, чек-листы и инструкции без прикладной необходимости, ‘сохрани’, ‘отправь’, main character energy, hidden gems, must visit, секреты, признаки элитарности, прямой нетворкинг, терапевтический жаргон, фальшивая элитарность, снобизм, anti-luxury морализирование. Не превращай интеллектуальный гедонизм в self-care.",
+      "ФАКТЫ: не придумывай личные эпизоды, биографические детали, цифры, места, цитаты, реакции, результаты или партнёрства. Если материала не хватает, начни с ‘Черновик: нужны …’ и назови максимум 3 недостающие детали, затем всё равно создай осторожный черновик. Предложи 2–3 точечных варианта proof, которые можно снять или найти в архиве. Если упомянуты конкретные фильм, книга, художник, выставка, место или исторический факт без точного названия, попроси подтвердить его до финальной версии.",
+      "Сначала молча проанализируй входной материал. Если он допускает несколько углов, предложи 2–3 трактовки, отличающиеся конфликтом, а не формулировкой: доступ vs близость; культурное потребление vs опыт; статусный вкус vs личный критерий; видимость vs честный разговор; количество событий vs связность вечера; владение vs отношение; город-список vs личная интеллектуальная карта.",
+      "Для КАЖДОЙ трактовки выдай строго: 1. Название / редакционный угол. 2. Полярность или внутренний конфликт. 3. Титр-хук на первые 1.5–2 секунды. 4. Устный хук — только если он не повторяет титр. 5. Сценарий по секундам: 0–2 визуальное напряжение; 2–7 контекст; 7–17 наблюдение/конфликт; 17–26 поворот/позиция; 26–32 открытый финал. 6. Voiceover: 55–75 русских слов максимум, короткие произносимые фразы, без абстракций без предмета или сцены. 7. Visual proof: что снять, обязательные детали, архив, где нужно разрешение. 8. Монтаж: планы, ритм, переходы, тишина. 9. Звук: voiceover/синхрон, room tone, конкретные звуки материала; не предлагай трендовую музыку без необходимости. 10. Один открытый культурный вопрос/CTA без лид-магнита. 11. Что ролик строит: вкус, доверие, будущий круг, экспертизу, founder credibility или локальный контекст. 12. Риски: гид, инфобиз, факты/права на съёмку.",
+      "Хук должен быть конкретной недосказанной мыслью с напряжением, а не кликбейтом. Хорошие формы: ‘Access is not the same as intimacy.’, ‘Вам не нужен ещё один city guide.’, ‘Фотокнига — ещё не культурная жизнь.’, ‘Можно ходить везде и всё равно пропустить главное.’",
+      "CTA — только один культурный вопрос, который продолжает разговор: например, ‘Какой фильм не закончился вместе с титрами?’ Не проси подписаться, сохранить, отправить, написать кодовое слово или перейти по ссылке.",
+      "В конце добавь блок ‘Проверка:’ с ровно этими строками: Авторский факт: [есть / нужно добавить]; Визуальный proof: [конкретный / нужно добыть]; Риск инфобиза: [низкий / средний / высокий + почему]; Риск превратиться в гид: [низкий / средний / высокий + почему]; Что зритель должен почувствовать: [одна точная формулировка]; Что нужно подтвердить Еве перед съёмкой: [1–3 конкретных пункта].",
+      "Входной запрос пользователя:",
+      sourceMaterial || "/reels\nmaterial: [не заполнен]\nreplica:\nproof:\nmessage:\nposition:\naudience:\ntone_of_voice:\nlifestyle/context:\nanti_dna:\ndiscussion_mode:",
+      "Не создавай <app-data>, JSON или контент для автоматического добавления в дашборд."
+    ];
+    weeklyFocus.textContent = "Turn a concrete cultural observation into a shootable 25–35 second Reel.";
+    runAiButton.textContent = "Create Reels scenario";
+  }
+
+  if (isRedTeamTask) {
+    const script = reelsSource?.value.trim();
+    promptLines = [
+      "Команда: /red_team",
+      "Ты — жёсткий, но точный сценарный редактор коротких видео для Eva Gorobets, founder Art Flaneur.",
+      "Отвечай по-русски. Пользователь прислал готовый сценарий: НЕ переписывай его сразу.",
+      "Сначала оцени сценарий по шести критериям: 1) где есть инфобизовая или self-care интонация; 2) где Ева превращается в lifestyle creator, гида или ‘девушку с хорошим вкусом’; 3) какие утверждения не имеют реального visual proof; 4) где звучит фальшивая элитарность; 5) где сценарий объясняет слишком много и не оставляет пространства зрителю; 6) есть ли реальный культурный конфликт, или только эстетика.",
+      "Ева — cultural strategist, researcher, former photographer и founder Art Flaneur. Её позиция: культура как опыт, а не коллекция событий; доступ не равен близости; вкус — практика внимания, не статус; Art Flaneur — инфраструктура культурного разговора, а не lifestyle-блог. Не допускай терапевтического языка, снобизма, гида по адресам, прямого нетворкинга, self-care, инфобиза и искусственной анти-роскоши.",
+      "Дай вердикт строго в четырёх разделах: ‘Оставить’, ‘Убрать’, ‘Заменить’, ‘Нужен факт от автора’. В каждом разделе укажи конкретную строку или смысловой фрагмент и короткое редакторское обоснование. Если в категории ничего нет, напиши ‘Нет критичных замечаний’.",
+      "Только ПОСЛЕ вердикта предложи одну — ровно одну — улучшенную версию сценария. Сохрани реальные факты из исходника, не придумывай новые личные эпизоды, места, цифры, цитаты или реакции. В улучшенной версии обязательно дай титр-хук, тайминг 0–32 секунды, voiceover до 75 русских слов, visual proof и один открытый культурный вопрос. Не предлагай варианты, не добавляй <app-data>, JSON или контент для автоматического добавления в дашборд.",
+      "Готовый сценарий:",
+      script || "[Сценарий не вставлен. Объясни, что для Red Team нужен полный текст готового сценария.]"
+    ];
+    weeklyFocus.textContent = "Pressure-test one finished Reel before it becomes a shoot.";
+    runAiButton.textContent = "Run Red Team";
+  }
+
   promptOutput.value = promptLines.join("\n");
   syncTextPanels();
+  updateStoryboardState();
+  updateVideoWorkflowState();
 
   // Update task chip in context bar
   if (aiContextTask) aiContextTask.textContent = task?.title || "Strategic plan";
@@ -2503,6 +2714,42 @@ function renderHints() {
     .join("");
 }
 
+function renderVideoAssets() {
+  if (!videoAssetList) return;
+  const assets = dashboardData.videoAssets || [];
+
+  if (!assets.length) {
+    videoAssetList.innerHTML = '<p class="stack-copy video-asset-empty">No short videos yet. Run a Reels scenario to start one.</p>';
+    return;
+  }
+
+  videoAssetList.innerHTML = assets
+    .map((asset) => {
+      const persona = asset.persona || "Unassigned persona";
+      const cluster = asset.cluster ? ` · ${asset.cluster}` : "";
+      const flags = [
+        asset.redTeamReview ? "Red Team" : null,
+        asset.approvedScript ? "Approved" : null,
+        asset.storyboardImage ? "Storyboard" : null,
+        asset.pipelineItemId ? "In pipeline" : null
+      ].filter(Boolean);
+      const flagsHtml = flags.length
+        ? `<div class="video-asset-flags">${flags.map((f) => `<span class="video-asset-flag">${f}</span>`).join("")}</div>`
+        : "";
+      return `
+        <article class="video-asset-card ${asset.id === activeVideoAssetId ? "is-active" : ""}">
+          <button class="video-asset-select" type="button" data-video-asset="${asset.id}">
+            <span class="video-asset-status">${asset.status}</span>
+            <span class="video-asset-title">${asset.title}</span>
+            <span class="stack-copy">${persona} · ${asset.stage}${cluster}</span>
+            ${flagsHtml}
+          </button>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderAll() {
   buildFilters();
   renderSectionStatuses();
@@ -2514,6 +2761,7 @@ function renderAll() {
   renderCalendar();
   renderChannels();
   renderHints();
+  renderVideoAssets();
   buildPrompt();
   updateApplyState();
 }
@@ -2642,17 +2890,19 @@ async function runAiPlan() {
     aiResponse.value = parsed.displayText || payload.text || "No text returned.";
     syncTextPanels();
 
-    // Diagnose why appData might be null
+    // Reels scenarios are narrative output, not a dashboard artifact.
     const rawText = payload.text || "";
-    const hasTag = /<app-data>/i.test(rawText);
-    const hasCloseTag = /<\/app-data>/i.test(rawText);
-    if (hasTag && hasCloseTag && !parsed.appData) {
-      const rawMatch = rawText.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
-      console.warn("[extractAppData] Parse failed. Raw inside tags:", rawMatch?.[1]?.slice(0, 400));
-      setAiStatus("JSON inside <app-data> could not be parsed — check console", "error");
-    } else if (!hasTag) {
-      console.warn("[runAiPlan] No <app-data> tag in response. First 300 chars:", rawText.slice(0, 300));
-      setAiStatus("Model returned text but no <app-data> tag — prompt may need re-running", "error");
+    if (!["reels-script", "red-team"].includes(task?.id)) {
+      const hasTag = /<app-data>/i.test(rawText);
+      const hasCloseTag = /<\/app-data>/i.test(rawText);
+      if (hasTag && hasCloseTag && !parsed.appData) {
+        const rawMatch = rawText.match(/<app-data>\s*([\s\S]*?)\s*<\/app-data>/i);
+        console.warn("[extractAppData] Parse failed. Raw inside tags:", rawMatch?.[1]?.slice(0, 400));
+        setAiStatus("JSON inside <app-data> could not be parsed — check console", "error");
+      } else if (!hasTag) {
+        console.warn("[runAiPlan] No <app-data> tag in response. First 300 chars:", rawText.slice(0, 300));
+        setAiStatus("Model returned text but no <app-data> tag — prompt may need re-running", "error");
+      }
     }
 
     latestAiRun = {
@@ -2669,7 +2919,33 @@ async function runAiPlan() {
       createdAt: new Date().toISOString()
     };
     saveAiHistoryEntry(latestAiRun);
+
+    if (task?.id === "reels-script") {
+      // A fresh scenario starts (or restarts) a video asset draft.
+      const asset = normalizeVideoAsset({
+        title: deriveVideoTitle(aiResponse.value),
+        persona: getFocusedPersona(),
+        stage: getFocusedStage(),
+        cluster: getFocusedCluster()?.title || "",
+        sourceMaterial: reelsSource?.value.trim() || "",
+        scenarioDraft: aiResponse.value,
+        status: "Scenario"
+      });
+      dashboardData.videoAssets = [asset, ...(dashboardData.videoAssets || [])].slice(0, 20);
+      activeVideoAssetId = asset.id;
+      saveState();
+      renderVideoAssets();
+    } else if (task?.id === "red-team") {
+      const asset = getActiveVideoAsset();
+      if (asset) {
+        touchVideoAsset(asset, { redTeamReview: aiResponse.value, status: "Red Team" });
+        renderVideoAssets();
+      }
+    }
+
     updateApplyState();
+    updateVideoWorkflowState();
+    updateStoryboardState();
     setAiStatus(`${task?.title || "Task"} via ${payload.providerMode}`, "success");
   } catch (error) {
     aiResponse.value = error.message.includes("Failed to fetch")
@@ -2720,6 +2996,131 @@ aiTaskList.addEventListener("click", (event) => {
   renderHints();
   showSection("ai");
   setAiStatus(`${getActiveAiTask()?.title || "Prompt"} ready`);
+});
+
+videoAssetList?.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-video-asset]");
+  if (!trigger) return;
+
+  activeVideoAssetId = trigger.dataset.videoAsset;
+  const asset = getActiveVideoAsset();
+  if (asset && !["reels-script", "red-team"].includes(getActiveAiTask()?.id)) {
+    activeAiTaskId = asset.approvedScript || asset.redTeamReview ? "red-team" : "reels-script";
+  }
+  buildPrompt();
+  renderHints();
+  renderVideoAssets();
+  updateVideoWorkflowState();
+  updateStoryboardState();
+  showSection("ai");
+  setAiStatus(`Editing “${asset?.title || "video"}”`, "success");
+});
+
+reelsSource?.addEventListener("input", () => {
+  if (["reels-script", "red-team"].includes(getActiveAiTask()?.id)) {
+    buildPrompt();
+  }
+});
+
+sendToRedTeamButton?.addEventListener("click", () => {
+  if (latestAiRun?.taskId !== "reels-script" || !latestAiRun.displayText) {
+    return;
+  }
+  const asset = getActiveVideoAsset();
+  if (asset) {
+    touchVideoAsset(asset, { scenarioDraft: latestAiRun.displayText });
+  }
+  activeAiTaskId = "red-team";
+  if (reelsSource) reelsSource.value = latestAiRun.displayText;
+  buildPrompt();
+  renderHints();
+  setAiStatus("Scenario moved to Red Team. Run the review.", "success");
+});
+
+approveScriptButton?.addEventListener("click", () => {
+  const task = getActiveAiTask();
+  let asset = getActiveVideoAsset();
+  // Prefer a fresh run; otherwise fall back to the saved asset script.
+  const script = latestAiRun?.displayText || asset?.redTeamReview || asset?.scenarioDraft || "";
+  if (!script) return;
+
+  if (!asset) {
+    asset = normalizeVideoAsset({
+      title: deriveVideoTitle(script),
+      persona: getFocusedPersona(),
+      stage: getFocusedStage(),
+      cluster: getFocusedCluster()?.title || "",
+      scenarioDraft: script
+    });
+    dashboardData.videoAssets = [asset, ...(dashboardData.videoAssets || [])].slice(0, 20);
+    activeVideoAssetId = asset.id;
+  }
+
+  const patch = { approvedScript: script, status: "Approved" };
+  if (task?.id === "red-team" && latestAiRun?.taskId === "red-team") patch.redTeamReview = script;
+  touchVideoAsset(asset, patch);
+
+  updateVideoWorkflowState();
+  updateStoryboardState();
+  renderVideoAssets();
+  setAiStatus("Production script approved.", "success");
+});
+
+createVideoItemButton?.addEventListener("click", () => {
+  const asset = getActiveVideoAsset();
+  if (!asset || !asset.approvedScript || asset.pipelineItemId) return;
+
+  const item = normalizePipelineItem({
+    title: asset.title,
+    persona: asset.persona,
+    stage: asset.stage,
+    format: asset.format,
+    channel: asset.channel,
+    briefContent: asset.approvedScript
+  });
+  dashboardData.pipeline.Brief = dashboardData.pipeline.Brief || [];
+  dashboardData.pipeline.Brief.unshift(item);
+  touchVideoAsset(asset, { pipelineItemId: item.id, status: asset.storyboardImage ? "Storyboard" : "Approved" });
+
+  renderAll();
+  updateVideoWorkflowState();
+  setAiStatus(`“${asset.title}” added to the pipeline as a Brief.`, "success");
+  showSection("pipeline");
+});
+
+generateStoryboardButton?.addEventListener("click", async () => {
+  const asset = getActiveVideoAsset();
+  const scenario = asset?.approvedScript;
+  if (!scenario) {
+    updateStoryboardState();
+    return;
+  }
+
+  generateStoryboardButton.disabled = true;
+  storyboardStatus.textContent = "Generating visual plan";
+
+  try {
+    const response = await fetch("/api/ai/storyboard-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Storyboard generation failed.");
+
+    touchVideoAsset(asset, {
+      storyboardImage: payload.imageDataUrl,
+      status: asset.pipelineItemId ? "Storyboard" : asset.status
+    });
+    storyboardImage.src = payload.imageDataUrl;
+    storyboardImage.hidden = false;
+    storyboardStatus.textContent = `Storyboard generated via ${payload.providerMode}`;
+    renderVideoAssets();
+  } catch (error) {
+    storyboardStatus.textContent = error.message;
+  } finally {
+    updateStoryboardState();
+  }
 });
 
 workflowGuide.addEventListener("click", (event) => {

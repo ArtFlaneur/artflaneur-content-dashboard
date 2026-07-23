@@ -15,7 +15,7 @@ A local-first editorial operations platform for **Art Flaneur**, a contemporary 
 | **Content Pipeline** | Kanban-style pipeline (Idea → Brief → Draft → Review → Published) with a full Brief Editor modal |
 | **Publishing Calendar** | Schedule published pieces by date and channel; sorted chronologically |
 | **Channels** | Track follower counts over time across Instagram, YouTube, LinkedIn, TikTok, Newsletter, and more; YouTube subscriber count can be auto-fetched via Google API |
-| **AI Studio** | Prompt builder backed by AWS Bedrock — generates strategy plans, persona deep-dives, cluster gap analyses, content briefs, and full drafts |
+| **AI Studio** | Prompt builder backed by AWS Bedrock — strategy plans, persona deep-dives, cluster gap analyses, content briefs, full drafts, plus an editorial short-video workflow (Reels scenario → Red Team review → approved script → storyboard → pipeline handoff) |
 | **Playbook** | Running editorial strategy roadmap |
 
 ---
@@ -24,8 +24,8 @@ A local-first editorial operations platform for **Art Flaneur**, a contemporary 
 
 - **Frontend** — Vanilla HTML / CSS / JavaScript, no framework, no build step
 - **Backend** — Node.js HTTP server (`server.js`), zero dependencies
-- **AI** — AWS Bedrock (Anthropic Claude by default) proxied through the local server
-- **State** — `localStorage` (browser-persisted, private)
+- **AI** — AWS Bedrock (Anthropic Claude by default) proxied through the local server; optional Bedrock text-to-image model for storyboards
+- **State** — persisted to `data.json` on the local server, with `localStorage` as an offline fallback
 
 ---
 
@@ -58,6 +58,9 @@ export AWS_REGION=us-east-1
 # Optional — defaults shown
 export BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
 export BEDROCK_MAX_TOKENS=8000
+# Optional — storyboard image generation. Must be an ACTIVE Bedrock text-to-image model
+# enabled for this account and region; there is no default.
+export BEDROCK_IMAGE_MODEL_ID=your_active_text_to_image_model_id
 # Optional — only when using temporary STS credentials
 export AWS_SESSION_TOKEN=your_session_token
 ```
@@ -90,6 +93,20 @@ YouTube API keys are entered per-channel directly in the Channels section of the
 | `cluster-gaps` | Identifies missing topic clusters given current coverage |
 | `content-brief` | Structured HubSpot-style brief for a specific cluster |
 | `full-draft` | Complete article draft based on the active brief |
+| `reels-script` | Editorial Instagram Reel scenario (25–35 sec) for Eva Gorobets, in Russian |
+| `red-team` | Stress-tests a finished Reel scenario, then proposes one improved version |
+
+### Editorial short-video workflow
+
+Reels and Red Team are editorial, not structured dashboard artifacts, so they are never auto-applied. Instead they drive a linked short-video asset:
+
+1. **Create Reels scenario** from source material — starts a video asset (persona, stage, cluster attached).
+2. **Send scenario to Red Team** — moves the scenario into review without copy/paste.
+3. **Approve as production script** — locks one version as the approved script.
+4. **Generate storyboard image** — builds a six-frame shooting reference from the approved script (requires `BEDROCK_IMAGE_MODEL_ID`).
+5. **Create pipeline item** — adds a Brief to the pipeline using the canonical `Instagram Reel — editorial short (25–35 sec)` format, linked back to the asset.
+
+Active assets and their state appear in the **Short video assets** list in AI Studio.
 
 ---
 
